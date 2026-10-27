@@ -6,10 +6,10 @@ const authMiddleware_1 = require("../../middleware/authMiddleware");
 const roleMiddleware_1 = require("../../middleware/roleMiddleware");
 const router = (0, express_1.Router)();
 router.use(authMiddleware_1.authMiddleware);
-// Technician self-performance report (Technician, Reception, Manager)
-router.get('/technicians/me', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => reports_controller_1.reportsController.getMyTechnicianPerformance(req, res, next));
-// Specific technician report by ID (Technician scoped to self, Reception & Manager can view)
-router.get('/technicians/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => reports_controller_1.reportsController.getTechnicianById(req, res, next));
+// Technician / Marketer self-performance report (Technician, Marketer, Reception, Manager)
+router.get('/technicians/me', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => reports_controller_1.reportsController.getMyTechnicianPerformance(req, res, next));
+// Specific technician / marketer report by ID (Technician/Marketer scoped to self, Reception & Manager can view)
+router.get('/technicians/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => reports_controller_1.reportsController.getTechnicianById(req, res, next));
 // All technicians performance list (Manager & Reception only; Technician & Cleaner blocked)
 router.get('/technicians', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => reports_controller_1.reportsController.getTechniciansPerformance(req, res, next));
 // Dashboard Summary Cards (Manager & Reception only; Technician & Cleaner blocked)

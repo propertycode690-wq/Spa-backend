@@ -21,8 +21,9 @@ exports.adjustCommissionSchema = zod_1.z.object({
     reason: zod_1.z.string({ required_error: 'reason is required for commission adjustments' }).min(3, 'Reason must be at least 3 characters'),
 });
 exports.setCommissionRuleSchema = zod_1.z.object({
-    serviceCategory: zod_1.z.string({ required_error: 'serviceCategory is required' }).min(2),
-    percentage: zod_1.z.number({ required_error: 'percentage is required' }).positive('percentage must be positive'),
-    fixedAmount: zod_1.z.number().nonnegative().optional(),
+    serviceCategory: zod_1.z.string().optional().default('General'),
+    percentage: zod_1.z.number().nonnegative().optional().default(0),
+    fixedAmount: zod_1.z.number().nonnegative().optional().nullable(),
+    type: zod_1.z.enum(['SERVICE', 'REFERRAL']).optional(),
 });
 //# sourceMappingURL=commissions.validation.js.map

@@ -9,6 +9,15 @@ const router = (0, express_1.Router)();
 router.get('/webhook', (req, res, next) => whatsapp_controller_1.whatsappController.verifyWebhook(req, res, next));
 // Inbound webhook: POST for delivery status updates (public endpoint)
 router.post('/webhook', (req, res, next) => whatsapp_controller_1.whatsappController.handleWebhook(req, res, next));
+// Public ping route to verify WhatsApp module deployment and routes
+router.get('/ping', (_req, res) => {
+    res.status(200).json({
+        status: 'ok',
+        module: 'whatsapp',
+        version: '1.2.0',
+        retentionEndpointReady: true,
+    });
+});
 // All subsequent routes require authentication
 router.use(authMiddleware_1.authMiddleware);
 // GET /api/v1/whatsapp/automations - View automations (Manager, Reception)
@@ -33,11 +42,23 @@ router.post('/triggers/celebrations', (0, roleMiddleware_1.allowRoles)('MANAGER'
 router.post('/triggers/rebooking-reminders', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.triggerRebookingReminders(req, res, next));
 // POST /api/v1/whatsapp/triggers/daily-close - Trigger Daily Close summary to Boss (Manager only)
 router.post('/triggers/daily-close', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => whatsapp_controller_1.whatsappController.triggerDailyClose(req, res, next));
+// POST /api/v1/whatsapp/triggers/client-welcome - Welcome message trigger (Manager, Reception)
+router.post('/triggers/client-welcome', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.triggerClientWelcome(req, res, next));
 // POST /api/v1/whatsapp/triggers/send - Dispatch single custom message with idempotency (Manager, Reception)
 router.post('/triggers/send', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.sendCustom(req, res, next));
 // GET /api/v1/whatsapp/logs - Audit logs with filtering & pagination (Manager, Reception)
 router.get('/logs', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.getLogs(req, res, next));
 // POST /api/v1/whatsapp/logs/:id/retry - Retry message (Manager, Reception)
 router.post('/logs/:id/retry', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.retryMessage(req, res, next));
+// POST /api/v1/whatsapp/logs/purge - Purge old message logs (Manager only)
+router.post('/logs/purge', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => whatsapp_controller_1.whatsappController.purgeOldLogs(req, res, next));
+// GET /api/v1/whatsapp/settings/retention - View retention policy (Manager, Reception)
+router.get('/settings/retention', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.getRetentionSettings(req, res, next));
+// PATCH /api/v1/whatsapp/settings/retention - Update auto-cleanup retention days (Manager only)
+router.patch('/settings/retention', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => whatsapp_controller_1.whatsappController.updateRetentionSettings(req, res, next));
+// GET /api/v1/whatsapp/settings/boss-phone - View configured Boss WhatsApp phone (Manager, Reception)
+router.get('/settings/boss-phone', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.getBossPhone(req, res, next));
+// POST /api/v1/whatsapp/settings/boss-phone - Update configured Boss WhatsApp phone (Manager only)
+router.post('/settings/boss-phone', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => whatsapp_controller_1.whatsappController.updateBossPhone(req, res, next));
 exports.default = router;
 //# sourceMappingURL=whatsapp.routes.js.map

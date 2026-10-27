@@ -25,5 +25,6 @@ exports.ROLES = {
     RECEPTION: 'RECEPTION',
     TECHNICIAN: 'TECHNICIAN',
     CLEANER: 'CLEANER',
+    MARKETER: 'MARKETER',
 };
 //# sourceMappingURL=constants.js.map

@@ -36,6 +36,7 @@ export declare const sendCustomMessageSchema: z.ZodObject<{
         REBOOKING: "REBOOKING";
         DAILY_SUMMARY: "DAILY_SUMMARY";
         DAILY_CLOSE_BOSS: "DAILY_CLOSE_BOSS";
+        CLIENT_WELCOME: "CLIENT_WELCOME";
     }>>;
     idempotencyKey: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
@@ -45,7 +46,7 @@ export declare const sendCustomMessageSchema: z.ZodObject<{
     appointmentId?: string | undefined;
     idempotencyKey?: string | undefined;
     invoiceId?: string | undefined;
-    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | undefined;
+    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | "CLIENT_WELCOME" | undefined;
 }, {
     message: string;
     recipientPhone: string;
@@ -53,7 +54,7 @@ export declare const sendCustomMessageSchema: z.ZodObject<{
     appointmentId?: string | undefined;
     idempotencyKey?: string | undefined;
     invoiceId?: string | undefined;
-    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | undefined;
+    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | "CLIENT_WELCOME" | undefined;
 }>;
 export declare const dailyCloseTriggerSchema: z.ZodObject<{
     businessDate: z.ZodOptional<z.ZodString>;
@@ -96,30 +97,48 @@ export declare const logsQuerySchema: z.ZodObject<{
         REBOOKING: "REBOOKING";
         DAILY_SUMMARY: "DAILY_SUMMARY";
         DAILY_CLOSE_BOSS: "DAILY_CLOSE_BOSS";
+        CLIENT_WELCOME: "CLIENT_WELCOME";
     }>>;
     clientId: z.ZodOptional<z.ZodString>;
     appointmentId: z.ZodOptional<z.ZodString>;
     invoiceId: z.ZodOptional<z.ZodString>;
     phone: z.ZodOptional<z.ZodString>;
+    search: z.ZodOptional<z.ZodString>;
     page: z.ZodOptional<z.ZodNumber>;
     limit: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     limit?: number | undefined;
+    search?: string | undefined;
     phone?: string | undefined;
     status?: "QUEUED" | "PENDING" | "SENT" | "DELIVERED" | "FAILED" | "SKIPPED" | undefined;
     clientId?: string | undefined;
     appointmentId?: string | undefined;
     page?: number | undefined;
     invoiceId?: string | undefined;
-    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | undefined;
+    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | "CLIENT_WELCOME" | undefined;
 }, {
     limit?: number | undefined;
+    search?: string | undefined;
     phone?: string | undefined;
     status?: "QUEUED" | "PENDING" | "SENT" | "DELIVERED" | "FAILED" | "SKIPPED" | undefined;
     clientId?: string | undefined;
     appointmentId?: string | undefined;
     page?: number | undefined;
     invoiceId?: string | undefined;
-    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | undefined;
+    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | "CLIENT_WELCOME" | undefined;
+}>;
+export declare const purgeLogsSchema: z.ZodObject<{
+    days: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+}, "strip", z.ZodTypeAny, {
+    days: number;
+}, {
+    days?: number | undefined;
+}>;
+export declare const updateRetentionSchema: z.ZodObject<{
+    days: z.ZodNumber;
+}, "strip", z.ZodTypeAny, {
+    days: number;
+}, {
+    days: number;
 }>;
 //# sourceMappingURL=whatsapp.validation.d.ts.map

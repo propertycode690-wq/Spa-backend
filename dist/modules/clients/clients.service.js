@@ -35,60 +35,57 @@ class ClientsService {
                 throw new errorHandler_1.AppError(`Client with this phone number already exists (${duplicateNormalized.name})`, constants_1.HTTP_STATUS.CONFLICT);
             }
         }
-        // 2. Client Acquisition Tracking Business Rule:
-        // When the logged-in user is a MANAGER:
-        // - Client is created normally (DIRECT).
-        // - No referral attribution, no employee referral commission, no Manager commission.
-        // - Even if referral info is sent manually via API by a Manager, it is stripped.
+        // 2. Client Acquisition / Referral Attribution Rule:
         let introducedByEmployeeId = null;
         let source = client_1.ClientSource.DIRECT;
         let referredByClientId = null;
         let recommendedByName = null;
         let recommendedByPhone = null;
         if (authUser.role === 'MANAGER') {
-            // Manager client creation: strictly normal DIRECT client with no referral attribution
-            introducedByEmployeeId = null;
-            source = client_1.ClientSource.DIRECT;
-            referredByClientId = null;
-            recommendedByName = null;
-            recommendedByPhone = null;
+            // Manager client creation:
+            // Manager can optionally specify an active, eligible staff member as referrer
+            const cleanIntroducedId = data.introducedByEmployeeId ? String(data.introducedByEmployeeId).trim() : null;
+            if (cleanIntroducedId) {
+                const staffUser = await database_1.default.user.findFirst({
+                    where: {
+                        id: cleanIntroducedId,
+                        isActive: true,
+                    },
+                    include: { role: true },
+                });
+                if (!staffUser) {
+                    throw new errorHandler_1.AppError('Selected referring staff member does not exist or is inactive', constants_1.HTTP_STATUS.BAD_REQUEST);
+                }
+                // Manager cannot attribute to another manager or cleaner (must be technician or reception)
+                const staffRole = staffUser.role?.name;
+                if (staffRole === 'MANAGER' || staffRole === 'CLEANER') {
+                    throw new errorHandler_1.AppError('Selected staff member is not eligible for client referral attribution', constants_1.HTTP_STATUS.BAD_REQUEST);
+                }
+                introducedByEmployeeId = staffUser.id;
+                source = client_1.ClientSource.STAFF_REFERRAL;
+            }
+            else {
+                // Direct / Walk-In
+                introducedByEmployeeId = null;
+                source = client_1.ClientSource.DIRECT;
+            }
         }
-        else if (authUser.role === 'TECHNICIAN') {
-            // Technician creates client: auto-attribute to technician
+        else {
+            // Non-manager staff (TECHNICIAN, RECEPTION, etc.):
+            // Derive referring employee strictly from authenticated session.
+            // Do NOT trust any client-submitted employee ID.
             introducedByEmployeeId = authUser.id;
             source = client_1.ClientSource.STAFF_REFERRAL;
         }
-        else {
-            // Other staff (e.g. RECEPTION):
-            if (data.introducedByEmployeeId) {
-                // Verify introducedByEmployeeId is an eligible staff member (NOT a Manager)
-                const employee = await database_1.default.user.findUnique({
-                    where: { id: data.introducedByEmployeeId },
-                    include: { role: true },
-                });
-                if (employee && employee.role?.name !== 'MANAGER') {
-                    introducedByEmployeeId = data.introducedByEmployeeId;
-                    source = client_1.ClientSource.STAFF_REFERRAL;
-                }
-                else {
-                    // Manager can never be an introducedBy employee
-                    introducedByEmployeeId = null;
-                    source = client_1.ClientSource.DIRECT;
-                }
-            }
-            else if (data.referredByClientId) {
-                referredByClientId = data.referredByClientId;
-                source = client_1.ClientSource.CLIENT_REFERRAL;
-            }
-            else if (data.source) {
-                source = data.source;
-            }
-            if (data.recommendedByName) {
-                recommendedByName = data.recommendedByName.trim() || null;
-            }
-            if (data.recommendedByPhone) {
-                recommendedByPhone = data.recommendedByPhone.trim() || null;
-            }
+        if (data.referredByClientId) {
+            referredByClientId = data.referredByClientId;
+            source = client_1.ClientSource.CLIENT_REFERRAL;
+        }
+        if (data.recommendedByName) {
+            recommendedByName = data.recommendedByName.trim() || null;
+        }
+        if (data.recommendedByPhone) {
+            recommendedByPhone = data.recommendedByPhone.trim() || null;
         }
         // Parse dates
         const birthday = data.birthday ? new Date(data.birthday) : null;
@@ -129,11 +126,21 @@ class ClientsService {
                 performedBy: authUser.id,
             },
         });
+        // 5. Trigger automated Welcome Message via WhatsApp immediately
+        try {
+            const { whatsappService } = require('../whatsapp/whatsapp.service');
+            whatsappService.triggerClientWelcome(client.id).catch((err) => {
+                console.warn('[ClientsService] Note: Welcome WhatsApp message could not be sent:', err?.message || err);
+            });
+        }
+        catch (e) {
+            // Non-blocking background dispatch
+        }
         return client;
     }
-    async getClients(query) {
+    async getClients(query, authUser) {
         const page = Math.max(1, parseInt(String(query.page || 1), 10));
-        const limit = Math.max(1, Math.min(100, parseInt(String(query.limit || 20), 10)));
+        const limit = Math.max(1, Math.min(1000, parseInt(String(query.limit || 50), 10)));
         const skip = (page - 1) * limit;
         const where = {};
         // Dynamic status filtering: ACTIVE, INACTIVE, ALL
@@ -145,6 +152,24 @@ class ClientsService {
             where.isActive = false;
         }
         // If rawStatus === 'ALL' or query.isActive === 'all' or empty, returns both active and inactive
+        // Referral query filtering with role-based server-side isolation:
+        // Marketers are strictly locked to their own introduced clients (req.user.id).
+        // Technicians requesting referred clients are strictly locked to their own referrals (req.user.id).
+        // Managers and Reception staff can query any specific staff member's referrals or view all.
+        const roleUpper = authUser?.role?.toUpperCase();
+        if (roleUpper === 'MARKETER' && authUser) {
+            where.introducedByEmployeeId = authUser.id;
+        }
+        else if (roleUpper === 'TECHNICIAN' && authUser) {
+            if (query.introducedByEmployeeId !== undefined && query.introducedByEmployeeId !== null) {
+                where.introducedByEmployeeId = authUser.id;
+            }
+        }
+        else {
+            if (query.introducedByEmployeeId && typeof query.introducedByEmployeeId === 'string' && query.introducedByEmployeeId.trim()) {
+                where.introducedByEmployeeId = query.introducedByEmployeeId.trim();
+            }
+        }
         if (query.search && query.search.trim() !== '') {
             const search = query.search.trim();
             where.OR = [
@@ -218,7 +243,7 @@ class ClientsService {
             },
         };
     }
-    async getClientById(id) {
+    async getClientById(id, authUser) {
         const client = await database_1.default.client.findUnique({
             where: { id },
             include: {
@@ -261,6 +286,12 @@ class ClientsService {
         });
         if (!client) {
             throw new errorHandler_1.AppError('Client not found', constants_1.HTTP_STATUS.NOT_FOUND);
+        }
+        // Role-based security: Marketers are strictly restricted to their own introduced clients
+        if (authUser?.role?.toUpperCase() === 'MARKETER') {
+            if (client.introducedByEmployeeId !== authUser.id) {
+                throw new errorHandler_1.AppError('Access denied: You can only view details of clients you introduced', constants_1.HTTP_STATUS.FORBIDDEN);
+            }
         }
         const { _count, appointments, ...rest } = client;
         const latestAppt = appointments?.[0];

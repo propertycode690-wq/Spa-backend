@@ -32,13 +32,27 @@ router.post('/:id/approve', allowRoles('MANAGER'), (req, res, next) =>
   commissionsController.approveCommission(req, res, next)
 );
 
-// GET /api/v1/commissions/:technicianId — Technician report (Manager, Reception, or own Technician)
-router.get('/:technicianId', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) =>
+// GET /api/v1/commissions/salary-summary — Authoritative MTD salary & target summary
+router.get(
+  '/salary-summary',
+  allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'),
+  (req, res, next) => commissionsController.getSalarySummary(req, res, next)
+);
+
+// POST /api/v1/commissions/payroll/finalize — Freeze & lock monthly payroll record (Manager only)
+router.post(
+  '/payroll/finalize',
+  allowRoles('MANAGER'),
+  (req, res, next) => commissionsController.finalizePayroll(req, res, next)
+);
+
+// GET /api/v1/commissions/:technicianId — Technician / Marketer report (Manager, Reception, or own Technician/Marketer)
+router.get('/:technicianId', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) =>
   commissionsController.getTechnicianCommissions(req, res, next)
 );
 
-// GET /api/v1/commissions — List commissions report (Manager/Reception full, Technician own only)
-router.get('/', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) =>
+// GET /api/v1/commissions — List commissions report (Manager/Reception full, Technician/Marketer own only)
+router.get('/', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) =>
   commissionsController.getCommissions(req, res, next)
 );
 

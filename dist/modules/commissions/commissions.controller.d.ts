@@ -7,6 +7,8 @@ export declare class CommissionsController {
     approveCommission(req: Request, res: Response, next: NextFunction): Promise<void>;
     setCommissionRule(req: Request, res: Response, next: NextFunction): Promise<void>;
     getCommissionRules(_req: Request, res: Response, next: NextFunction): Promise<void>;
+    getSalarySummary(req: Request, res: Response, next: NextFunction): Promise<void>;
+    finalizePayroll(req: Request, res: Response, next: NextFunction): Promise<void>;
 }
 export declare const commissionsController: CommissionsController;
 //# sourceMappingURL=commissions.controller.d.ts.map

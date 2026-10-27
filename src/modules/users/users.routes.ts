@@ -8,17 +8,17 @@ const router = Router();
 // All staff / user management routes require authentication
 router.use(authMiddleware);
 
-// GET /api/v1/users — view staff (Manager, Reception, Technician)
+// GET /api/v1/users — view staff (Manager, Reception, Technician, Marketer)
 router.get(
   '/',
-  allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN'),
+  allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'),
   (req, res, next) => usersController.getUsers(req, res, next)
 );
 
 // GET /api/v1/users/:id — view single staff member
 router.get(
   '/:id',
-  allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN'),
+  allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'),
   (req, res, next) => usersController.getUserById(req, res, next)
 );
 
@@ -27,6 +27,13 @@ router.post(
   '/',
   allowRoles('MANAGER'),
   (req, res, next) => usersController.createUser(req, res, next)
+);
+
+// PATCH /api/v1/users/:id/salary-contract — update salary & commission contract (Manager only)
+router.patch(
+  '/:id/salary-contract',
+  allowRoles('MANAGER'),
+  (req, res, next) => usersController.updateSalaryContract(req, res, next)
 );
 
 // PATCH /api/v1/users/:id — update staff (Manager only)

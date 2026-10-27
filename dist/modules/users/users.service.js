@@ -10,7 +10,7 @@ const errorHandler_1 = require("../../middleware/errorHandler");
 const constants_1 = require("../../config/constants");
 class UsersService {
     formatUser(user) {
-        const roleName = user.role?.name || 'TECHNICIAN';
+        let roleName = user.role?.name || 'TECHNICIAN';
         const email = user.email || '';
         const phone = user.phone || user.staffProfile?.phone || null;
         const username = email.split('@')[0];
@@ -29,6 +29,20 @@ class UsersService {
             }
             specialties = specialties.map((s) => (s === 'Massage' ? 'Body Massage' : s));
         }
+        if (roleName === 'MARKETER' || specialties.some((s) => s.toLowerCase() === 'marketer')) {
+            roleName = 'MARKETER';
+            specialties = specialties.filter((s) => s.toLowerCase() !== 'marketer');
+        }
+        let salaryContract;
+        if (user.staffProfile) {
+            salaryContract = {
+                monthlyTarget: Number(user.staffProfile.monthlyTarget || 0),
+                basePay: Number(user.staffProfile.basePay || 0),
+                commissionRate: Number(user.staffProfile.commissionRate || 0),
+                fixedSalary: Number(user.staffProfile.fixedSalary || 0),
+                targetScope: user.staffProfile.targetScope || 'INDIVIDUAL',
+            };
+        }
         return {
             id: user.id,
             name: user.staffProfile?.name || email.split('@')[0],
@@ -38,6 +52,7 @@ class UsersService {
             role: roleName.toLowerCase(),
             specialties: specialties,
             active: user.isActive,
+            salaryContract,
             createdAt: user.createdAt,
             updatedAt: user.updatedAt,
         };
@@ -98,15 +113,37 @@ class UsersService {
             }
         }
         const roleUpper = input.role.toUpperCase();
-        const roleRecord = await database_1.default.role.findFirst({
+        let roleRecord = await database_1.default.role.findFirst({
             where: { name: roleUpper },
         });
+        if (!roleRecord && roleUpper === 'MARKETER') {
+            try {
+                roleRecord = await database_1.default.role.upsert({
+                    where: { name: 'MARKETER' },
+                    update: {},
+                    create: { name: 'MARKETER' },
+                });
+            }
+            catch {
+                roleRecord = await database_1.default.role.findFirst({
+                    where: { name: 'TECHNICIAN' },
+                });
+            }
+        }
         if (!roleRecord) {
             throw new errorHandler_1.AppError(`Invalid role: ${input.role}`, constants_1.HTTP_STATUS.BAD_REQUEST);
         }
-        const passwordToHash = input.password && input.password.trim() ? input.password.trim() : '123456';
+        if (!input.password || !input.password.trim()) {
+            throw new errorHandler_1.AppError('Password is required (minimum 6 characters)', constants_1.HTTP_STATUS.BAD_REQUEST);
+        }
+        const passwordToHash = input.password.trim();
         const passwordHash = await bcrypt_1.default.hash(passwordToHash, 10);
-        const specialtiesJson = (Array.isArray(input.specialties) ? input.specialties : []).map((s) => (s === 'Massage' ? 'Body Massage' : s));
+        const isMarketerRole = input.role.toLowerCase() === 'marketer';
+        const rawSpecs = Array.isArray(input.specialties) ? input.specialties : [];
+        const specialtiesList = isMarketerRole && !rawSpecs.includes('Marketer')
+            ? [...rawSpecs, 'Marketer']
+            : rawSpecs;
+        const specialtiesJson = specialtiesList.map((s) => (s === 'Massage' ? 'Body Massage' : s));
         const user = await database_1.default.user.create({
             data: {
                 email: emailNormalized,
@@ -143,9 +180,23 @@ class UsersService {
         const userUpdates = {};
         if (input.role) {
             const roleUpper = input.role.toUpperCase();
-            const roleRecord = await database_1.default.role.findFirst({
+            let roleRecord = await database_1.default.role.findFirst({
                 where: { name: roleUpper },
             });
+            if (!roleRecord && roleUpper === 'MARKETER') {
+                try {
+                    roleRecord = await database_1.default.role.upsert({
+                        where: { name: 'MARKETER' },
+                        update: {},
+                        create: { name: 'MARKETER' },
+                    });
+                }
+                catch {
+                    roleRecord = await database_1.default.role.findFirst({
+                        where: { name: 'TECHNICIAN' },
+                    });
+                }
+            }
             if (!roleRecord) {
                 throw new errorHandler_1.AppError(`Invalid role: ${input.role}`, constants_1.HTTP_STATUS.BAD_REQUEST);
             }
@@ -242,6 +293,73 @@ class UsersService {
             where: { id },
             data: { isActive: false },
         });
+    }
+    async updateSalaryContract(userId, input) {
+        const user = await database_1.default.user.findUnique({
+            where: { id: userId },
+            include: { staffProfile: true, role: true },
+        });
+        if (!user) {
+            throw new errorHandler_1.AppError('User not found', constants_1.HTTP_STATUS.NOT_FOUND);
+        }
+        const monthlyTarget = Number(input.monthlyTarget) || 0;
+        const basePay = Number(input.basePay) || 0;
+        const commissionRate = Number(input.commissionRate) || 0;
+        const fixedSalary = Number(input.fixedSalary) || 0;
+        const targetScope = input.targetScope === 'SPA_TOTAL' ? 'SPA_TOTAL' : 'INDIVIDUAL';
+        if (monthlyTarget < 0 || basePay < 0 || fixedSalary < 0) {
+            throw new errorHandler_1.AppError('Monetary parameters must be non-negative', constants_1.HTTP_STATUS.BAD_REQUEST);
+        }
+        if (commissionRate < 0 || commissionRate > 100) {
+            throw new errorHandler_1.AppError('Commission rate must be between 0% and 100%', constants_1.HTTP_STATUS.BAD_REQUEST);
+        }
+        // Advisory check: If basePay + target * commissionRate / 100 < fixedSalary
+        let advisoryWarning = null;
+        const projectedAtTarget = basePay + (monthlyTarget * commissionRate) / 100;
+        if (projectedAtTarget < fixedSalary) {
+            advisoryWarning =
+                'Advisory: Base pay + commission at exact target (' +
+                    projectedAtTarget.toLocaleString('en-US') +
+                    ' FCFA) is lower than fixed salary (' +
+                    fixedSalary.toLocaleString('en-US') +
+                    ' FCFA). The employee will receive the fixed salary under the payout formula.';
+        }
+        let updatedProfile;
+        if (user.staffProfile) {
+            updatedProfile = await database_1.default.staffProfile.update({
+                where: { userId },
+                data: {
+                    monthlyTarget,
+                    basePay,
+                    commissionRate,
+                    fixedSalary,
+                    targetScope,
+                },
+            });
+        }
+        else {
+            updatedProfile = await database_1.default.staffProfile.create({
+                data: {
+                    userId,
+                    name: user.email.split('@')[0],
+                    monthlyTarget,
+                    basePay,
+                    commissionRate,
+                    fixedSalary,
+                    targetScope,
+                },
+            });
+        }
+        return {
+            userId: user.id,
+            staffName: updatedProfile.name,
+            monthlyTarget: Number(updatedProfile.monthlyTarget),
+            basePay: Number(updatedProfile.basePay),
+            commissionRate: Number(updatedProfile.commissionRate),
+            fixedSalary: Number(updatedProfile.fixedSalary),
+            targetScope: updatedProfile.targetScope,
+            advisoryWarning,
+        };
     }
 }
 exports.UsersService = UsersService;

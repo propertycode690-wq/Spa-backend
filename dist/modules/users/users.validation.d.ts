@@ -5,23 +5,23 @@ export declare const createUserSchema: z.ZodObject<{
     phone: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     username: z.ZodOptional<z.ZodString>;
     role: z.ZodString;
-    password: z.ZodOptional<z.ZodString>;
+    password: z.ZodString;
     specialties: z.ZodOptional<z.ZodArray<z.ZodString, "many">>;
 }, "strip", z.ZodTypeAny, {
     role: string;
     email: string;
     name: string;
+    password: string;
     phone?: string | null | undefined;
     specialties?: string[] | undefined;
-    password?: string | undefined;
     username?: string | undefined;
 }, {
     role: string;
     email: string;
     name: string;
+    password: string;
     phone?: string | null | undefined;
     specialties?: string[] | undefined;
-    password?: string | undefined;
     username?: string | undefined;
 }>;
 export declare const updateUserSchema: z.ZodObject<{

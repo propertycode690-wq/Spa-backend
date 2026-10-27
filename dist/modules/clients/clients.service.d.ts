@@ -31,7 +31,7 @@ export declare class ClientsService {
         lastVisitAt: Date | null;
         lastServiceDate: Date | null;
     }>;
-    getClients(query: ClientQueryFilter): Promise<{
+    getClients(query: ClientQueryFilter, authUser?: AuthContextUser): Promise<{
         clients: any[];
         pagination: {
             total: number;
@@ -40,7 +40,7 @@ export declare class ClientsService {
             totalPages: number;
         };
     }>;
-    getClientById(id: string): Promise<any>;
+    getClientById(id: string, authUser?: AuthContextUser): Promise<any>;
     updateClient(id: string, data: UpdateClientInput, authUser: AuthContextUser): Promise<{
         id: string;
         phone: string;

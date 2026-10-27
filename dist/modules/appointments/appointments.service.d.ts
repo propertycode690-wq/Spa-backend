@@ -14,6 +14,7 @@ export declare class AppointmentsService {
             name: string;
             whatsapp: string | null;
             quartier: string | null;
+            introducedByEmployeeId: string | null;
         };
         mainTechnician: {
             staffProfile: {
@@ -142,6 +143,7 @@ export declare class AppointmentsService {
             name: string;
             whatsapp: string | null;
             quartier: string | null;
+            introducedByEmployeeId: string | null;
         };
         mainTechnician: {
             staffProfile: {
@@ -206,6 +208,7 @@ export declare class AppointmentsService {
             name: string;
             whatsapp: string | null;
             quartier: string | null;
+            introducedByEmployeeId: string | null;
         };
         mainTechnician: {
             staffProfile: {
@@ -270,6 +273,7 @@ export declare class AppointmentsService {
             name: string;
             whatsapp: string | null;
             quartier: string | null;
+            introducedByEmployeeId: string | null;
         };
         mainTechnician: {
             staffProfile: {
@@ -334,6 +338,7 @@ export declare class AppointmentsService {
             name: string;
             whatsapp: string | null;
             quartier: string | null;
+            introducedByEmployeeId: string | null;
         };
         mainTechnician: {
             staffProfile: {

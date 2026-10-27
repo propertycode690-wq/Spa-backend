@@ -5,6 +5,8 @@ import {
   sendCustomMessageSchema,
   dailyCloseTriggerSchema,
   logsQuerySchema,
+  purgeLogsSchema,
+  updateRetentionSchema,
 } from './whatsapp.validation';
 import { HTTP_STATUS } from '../../config/constants';
 import { AuthContextUser } from './whatsapp.types';
@@ -103,6 +105,23 @@ export class WhatsAppController {
         message: result.alreadySent
           ? 'Daily close summary was already sent for this date'
           : 'Daily close summary dispatched to Manager/Boss',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async triggerClientWelcome(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const clientId = req.body.clientId;
+      if (!clientId) {
+        throw new AppError('clientId is required', HTTP_STATUS.BAD_REQUEST);
+      }
+      const result = await whatsappService.triggerClientWelcome(clientId);
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: result.alreadySent ? 'Welcome message was already sent to this client' : 'Welcome message dispatched to client',
         data: result,
       });
     } catch (error) {
@@ -234,6 +253,77 @@ export class WhatsAppController {
         success: true,
         message: 'Message retry dispatched',
         data,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async purgeOldLogs(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const parsed = purgeLogsSchema.parse(req.body || {});
+      const days = parsed.days || 30;
+      const result = await whatsappService.purgeOldMessageLogs(days);
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: `Successfully purged ${result.deletedCount} message logs older than ${days} days.`,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getRetentionSettings(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const days = whatsappService.getRetentionDays();
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: { retentionDays: days },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateRetentionSettings(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const parsed = updateRetentionSchema.parse(req.body);
+      const days = whatsappService.setRetentionDays(parsed.days);
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: `Auto-cleanup retention updated to ${days} days.`,
+        data: { retentionDays: days },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getBossPhone(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const phone = whatsappService.getBossPhoneNumber();
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: { bossPhone: phone },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateBossPhone(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const phoneInput = req.body.bossPhone || req.body.phone;
+      if (!phoneInput || typeof phoneInput !== 'string' || !phoneInput.trim()) {
+        throw new AppError('Valid boss phone number is required', HTTP_STATUS.BAD_REQUEST);
+      }
+      const savedPhone = await whatsappService.setBossPhoneNumber(phoneInput.trim());
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: `Boss WhatsApp phone number updated to ${savedPhone}`,
+        data: { bossPhone: savedPhone },
       });
     } catch (error) {
       next(error);

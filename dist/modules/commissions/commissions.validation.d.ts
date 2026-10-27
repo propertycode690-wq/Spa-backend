@@ -50,16 +50,19 @@ export declare const adjustCommissionSchema: z.ZodObject<{
     adjustedRate?: number | undefined;
 }>;
 export declare const setCommissionRuleSchema: z.ZodObject<{
-    serviceCategory: z.ZodString;
-    percentage: z.ZodNumber;
-    fixedAmount: z.ZodOptional<z.ZodNumber>;
+    serviceCategory: z.ZodDefault<z.ZodOptional<z.ZodString>>;
+    percentage: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    fixedAmount: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
+    type: z.ZodOptional<z.ZodEnum<["SERVICE", "REFERRAL"]>>;
 }, "strip", z.ZodTypeAny, {
     percentage: number;
     serviceCategory: string;
-    fixedAmount?: number | undefined;
+    type?: "SERVICE" | "REFERRAL" | undefined;
+    fixedAmount?: number | null | undefined;
 }, {
-    percentage: number;
-    serviceCategory: string;
-    fixedAmount?: number | undefined;
+    type?: "SERVICE" | "REFERRAL" | undefined;
+    percentage?: number | undefined;
+    fixedAmount?: number | null | undefined;
+    serviceCategory?: string | undefined;
 }>;
 //# sourceMappingURL=commissions.validation.d.ts.map

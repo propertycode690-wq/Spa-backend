@@ -60,6 +60,7 @@ export interface MessageLogsQueryFilter {
     appointmentId?: string;
     invoiceId?: string;
     phone?: string;
+    search?: string;
     page?: number;
     limit?: number;
 }

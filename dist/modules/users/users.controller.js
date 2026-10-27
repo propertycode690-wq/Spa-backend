@@ -74,6 +74,16 @@ class UsersController {
             next(error);
         }
     }
+    async updateSalaryContract(req, res, next) {
+        try {
+            const id = getParamId(req);
+            const contract = await users_service_1.usersService.updateSalaryContract(id, req.body);
+            (0, response_1.sendSuccess)(res, contract, constants_1.HTTP_STATUS.OK, 'Salary contract updated successfully');
+        }
+        catch (error) {
+            next(error);
+        }
+    }
 }
 exports.UsersController = UsersController;
 exports.usersController = new UsersController();

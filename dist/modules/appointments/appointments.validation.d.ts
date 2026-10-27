@@ -12,11 +12,11 @@ export declare const createAppointmentServiceItemSchema: z.ZodObject<{
     technicianId?: string | undefined;
     price?: number | undefined;
 }>;
-export declare const appointmentTimeSchema: z.ZodEffects<z.ZodString, string, string>;
+export declare const appointmentTimeSchema: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodEffects<z.ZodString, string, string>>;
 export declare const createAppointmentSchema: z.ZodObject<{
     clientId: z.ZodString;
     appointmentDate: z.ZodString;
-    appointmentTime: z.ZodEffects<z.ZodString, string, string>;
+    appointmentTime: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodEffects<z.ZodString, string, string>>;
     mainTechnicianId: z.ZodString;
     notes: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     services: z.ZodArray<z.ZodObject<{
@@ -57,7 +57,7 @@ export declare const createAppointmentSchema: z.ZodObject<{
 }>;
 export declare const updateAppointmentSchema: z.ZodObject<{
     appointmentDate: z.ZodOptional<z.ZodString>;
-    appointmentTime: z.ZodOptional<z.ZodEffects<z.ZodString, string, string>>;
+    appointmentTime: z.ZodOptional<z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodEffects<z.ZodString, string, string>>>;
     mainTechnicianId: z.ZodOptional<z.ZodString>;
     notes: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     lateMinutes: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;

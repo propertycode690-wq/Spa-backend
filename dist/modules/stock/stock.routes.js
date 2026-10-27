@@ -9,7 +9,7 @@ router.use(authMiddleware_1.authMiddleware);
 // GET /api/v1/stock/activity — Chronological activity logs (Technician sees own usage, Manager/Reception full)
 router.get('/activity', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => stock_controller_1.stockController.getStockActivities(req, res, next));
 // GET /api/v1/stock/retail — View retail products and stock
-router.get('/retail', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.getRetailStock(req, res, next));
+router.get('/retail', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => stock_controller_1.stockController.getRetailStock(req, res, next));
 // POST /api/v1/stock/retail — Manager create retail product
 router.post('/retail', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.createRetailProduct(req, res, next));
 // PATCH /api/v1/stock/retail/:id — Manager update retail product (price, stock, active status)
@@ -22,6 +22,15 @@ router.post('/retail/deduct', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEP
 router.get('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => stock_controller_1.stockController.getServiceStock(req, res, next));
 // POST /api/v1/stock — Manager creates new service stock item
 router.post('/', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.createServiceStock(req, res, next));
+// ── Daily Stock Photo Audits ─────────────────────────────────────────
+// POST /api/v1/stock/daily-audit — Technician or staff submits end-of-day stock photo + remarks
+router.post('/daily-audit', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => stock_controller_1.stockController.submitDailyAudit(req, res, next));
+// GET /api/v1/stock/daily-audit — View daily stock photo audits with filters
+router.get('/daily-audit', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => stock_controller_1.stockController.getDailyAudits(req, res, next));
+// PATCH /api/v1/stock/daily-audit/:id/review — Manager/Reception review audit
+router.patch('/daily-audit/:id/review', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.reviewDailyAudit(req, res, next));
+// DELETE /api/v1/stock/daily-audit/:id — Delete daily stock audit
+router.delete('/daily-audit/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => stock_controller_1.stockController.deleteDailyAudit(req, res, next));
 // GET /api/v1/stock/:id — View single stock item
 router.get('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => stock_controller_1.stockController.getStockById(req, res, next));
 // POST /api/v1/stock/:id/refill — Manager refills service stock

@@ -6,12 +6,15 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.whatsappService = exports.WhatsAppService = void 0;
 exports.normalizeAutomationType = normalizeAutomationType;
 const database_1 = __importDefault(require("../../config/database"));
+const client_1 = require("@prisma/client");
 const errorHandler_1 = require("../../middleware/errorHandler");
 const constants_1 = require("../../config/constants");
 const whatsapp_types_1 = require("./whatsapp.types");
 const whatsapp_adapter_1 = require("./whatsapp.adapter");
 const notification_event_builder_1 = require("../notifications/notification-event.builder");
 const invoice_pdf_service_1 = require("../invoices/invoice-pdf.service");
+const fs_1 = __importDefault(require("fs"));
+const path_1 = __importDefault(require("path"));
 const logger_1 = require("../../utils/logger");
 function normalizeAutomationType(input) {
     const up = (input || '').toUpperCase().replace(/-/g, '_');
@@ -70,24 +73,34 @@ class WhatsAppService {
             template: 'OMEGA SPA Daily Close Summary ({todayDate}): Total Revenue: {totalRevenue} FCFA | Clients Served: {clientsServed} | Cash: {cashAmount} FCFA | MoMo: {momoAmount} FCFA | Orange: {orangeAmount} FCFA.',
             timing: '19:30',
         },
-        APPOINTMENT_REMINDER: {
-            template: 'Hello {clientName}, your appointment at OMEGA SPA is confirmed for {appointmentDate} at {appointmentTime}.',
-            timing: '24h',
-        },
-        INVOICE_THANKYOU: {
-            template: 'Thank you {clientName} for your payment of {amount} FCFA for Invoice {invoiceNumber}.',
+        CLIENT_WELCOME: {
+            template: "Hello {clientName}! 😊 We’d love to welcome you to Omega Spa.\n\nIt’s the perfect time to take a break and treat yourself to some relaxation. ✨ Contact us or book your appointment whenever you're ready.\n\nWe look forward to seeing you soon! 💚",
             timing: 'immediate',
         },
-        DAILY_SUMMARY: {
-            template: 'OMEGA SPA Daily Summary ({todayDate}): Total Revenue: {totalRevenue} FCFA.',
-            timing: '19:30',
-        },
     };
+    hasSeeded = false;
     /**
      * Automatically ensure default templates are seeded in database if table is empty.
      */
     async ensureSeededAutomations() {
+        if (this.hasSeeded)
+            return;
+        this.hasSeeded = true;
+        // Purge legacy duplicate types from early schema
+        await database_1.default.whatsAppAutomation.deleteMany({
+            where: {
+                type: {
+                    in: [
+                        'APPOINTMENT_REMINDER',
+                        'INVOICE_THANKYOU',
+                        'DAILY_SUMMARY',
+                    ],
+                },
+            },
+        }).catch(() => { });
         for (const [type, data] of Object.entries(this.defaultTemplates)) {
+            if (!data)
+                continue;
             const autoType = type;
             await database_1.default.whatsAppAutomation.upsert({
                 where: { type: autoType },
@@ -102,11 +115,20 @@ class WhatsAppService {
         }
     }
     /**
-     * Get all automation configurations.
+     * Get all automation configurations (strictly the 9 active canonical types).
      */
     async getAutomations() {
         await this.ensureSeededAutomations();
         return database_1.default.whatsAppAutomation.findMany({
+            where: {
+                type: {
+                    notIn: [
+                        'APPOINTMENT_REMINDER',
+                        'INVOICE_THANKYOU',
+                        'DAILY_SUMMARY',
+                    ],
+                },
+            },
             orderBy: { createdAt: 'asc' },
         });
     }
@@ -125,23 +147,36 @@ class WhatsAppService {
     }
     /**
      * Update automation configuration (Manager only).
+     * Direct upsert executes in a single database round-trip (~100-200ms).
      */
     async updateAutomation(type, input) {
-        await this.ensureSeededAutomations();
-        const existing = await database_1.default.whatsAppAutomation.findUnique({ where: { type } });
-        if (!existing) {
-            throw new errorHandler_1.AppError(`Automation setting for ${type} not found`, constants_1.HTTP_STATUS.NOT_FOUND);
-        }
         const activeFlag = input.isActive !== undefined ? input.isActive : input.enabled;
         const timeVal = input.timing !== undefined ? input.timing : input.scheduleTime;
-        return database_1.default.whatsAppAutomation.update({
+        const defaultData = this.defaultTemplates[type];
+        const updated = await database_1.default.whatsAppAutomation.upsert({
             where: { type },
-            data: {
+            create: {
+                type,
+                template: input.template !== undefined ? input.template.trim() : (defaultData?.template || ''),
+                isActive: activeFlag !== undefined ? activeFlag : true,
+                timing: timeVal !== undefined ? (timeVal ? timeVal.trim() : null) : (defaultData?.timing || null),
+            },
+            update: {
                 template: input.template !== undefined ? input.template.trim() : undefined,
                 isActive: activeFlag !== undefined ? activeFlag : undefined,
                 timing: timeVal !== undefined ? (timeVal ? timeVal.trim() : null) : undefined,
             },
         });
+        if (timeVal && typeof timeVal === 'string') {
+            try {
+                const { rescheduleWhatsAppJob } = require('./whatsapp.scheduler');
+                rescheduleWhatsAppJob(type, timeVal.trim());
+            }
+            catch (err) {
+                logger_1.logger.warn('[WhatsApp Service] Dynamic reschedule could not be triggered:', err?.message || err);
+            }
+        }
+        return updated;
     }
     /**
      * Compiles template string by substituting placeholders with real data.
@@ -177,6 +212,28 @@ class WhatsAppService {
                 return {
                     alreadySent: true,
                     log: existingByAppt,
+                };
+            }
+        }
+        // Secondary check B: Strict 30-day anti-spam cooldown specifically for REBOOKING marketing messages
+        if (automationType === whatsapp_types_1.WhatsAppAutomationType.REBOOKING && (recipientPhone || clientId)) {
+            const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+            const existingRebooking = await database_1.default.whatsAppMessageLog.findFirst({
+                where: {
+                    automationType: whatsapp_types_1.WhatsAppAutomationType.REBOOKING,
+                    OR: [
+                        ...(recipientPhone ? [{ recipientPhone }] : []),
+                        ...(clientId ? [{ clientId }] : []),
+                    ],
+                    status: { in: ['SENT', 'DELIVERED', 'QUEUED'] },
+                    createdAt: { gte: thirtyDaysAgo },
+                },
+            });
+            if (existingRebooking) {
+                logger_1.logger.info(`[WhatsApp Dispatch] Skipping rebooking for ${recipientPhone || clientId}: message already sent within 30 days.`);
+                return {
+                    alreadySent: true,
+                    log: existingRebooking,
                 };
             }
         }
@@ -599,10 +656,71 @@ class WhatsAppService {
         };
     }
     /**
-     * 6. Rebooking Reminder Trigger
+     * 6. Rebooking Reminder Trigger with Anti-Spam Guards
      */
     async triggerRebooking(clientId, businessDate = new Date().toISOString().split('T')[0]) {
-        const event = await notification_event_builder_1.notificationEventBuilder.buildRebookingEvent(clientId, businessDate);
+        // 1. Fetch client with upcoming appointments check
+        const client = await database_1.default.client.findUnique({
+            where: { id: clientId },
+            include: {
+                appointments: {
+                    where: {
+                        status: { in: [client_1.AppointmentStatus.SCHEDULED, client_1.AppointmentStatus.IN_PROGRESS] },
+                        appointmentDate: { gte: new Date() },
+                    },
+                    take: 1,
+                },
+            },
+        });
+        if (!client) {
+            throw new errorHandler_1.AppError('Client not found', constants_1.HTTP_STATUS.NOT_FOUND);
+        }
+        // Guard A: Skip if client already has an upcoming appointment scheduled
+        if (client.appointments && client.appointments.length > 0) {
+            logger_1.logger.info(`[WhatsApp Rebooking] Skipped client ${client.name} (${clientId}): Already has an active upcoming appointment.`);
+            return {
+                alreadySent: true,
+                skipped: true,
+                reason: 'Client already has an upcoming appointment scheduled',
+                log: { status: 'SKIPPED' },
+            };
+        }
+        // Guard B: Check 30-day anti-spam cooldown across WhatsAppMessageLog
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const clientPhone = client.phone || client.whatsapp;
+        if (clientPhone) {
+            const existingRecentLog = await database_1.default.whatsAppMessageLog.findFirst({
+                where: {
+                    automationType: whatsapp_types_1.WhatsAppAutomationType.REBOOKING,
+                    recipientPhone: clientPhone,
+                    status: { in: ['SENT', 'DELIVERED', 'QUEUED'] },
+                    createdAt: { gte: thirtyDaysAgo },
+                },
+            });
+            if (existingRecentLog) {
+                logger_1.logger.info(`[WhatsApp Rebooking] Skipped client ${client.name} (${clientPhone}): Received rebooking reminder within last 30 days.`);
+                return {
+                    alreadySent: true,
+                    skipped: true,
+                    reason: 'Client received rebooking reminder within last 30 days',
+                    log: existingRecentLog,
+                };
+            }
+        }
+        // 2. Build Event safely (checks >= 30 days threshold)
+        let event;
+        try {
+            event = await notification_event_builder_1.notificationEventBuilder.buildRebookingEvent(clientId, businessDate);
+        }
+        catch (err) {
+            logger_1.logger.info(`[WhatsApp Rebooking] Inactivity requirement not met for client ${clientId}: ${err?.message || err}`);
+            return {
+                alreadySent: true,
+                skipped: true,
+                reason: err?.message || 'Inactivity threshold not met',
+                log: { status: 'SKIPPED' },
+            };
+        }
         const setting = await this.getAutomationByType(whatsapp_types_1.WhatsAppAutomationType.REBOOKING);
         const message = this.compileTemplate(setting.template, event.placeholders);
         return this.dispatchMessage({
@@ -622,6 +740,7 @@ class WhatsAppService {
     }
     /**
      * Process Rebooking Reminders Batch
+     * Strictly targets clients with completed visits >= 30 days ago and NO upcoming bookings.
      */
     async processRebookingReminders(clientId) {
         await this.ensureSeededAutomations();
@@ -630,19 +749,35 @@ class WhatsAppService {
             const res = await this.triggerRebooking(clientId, todayStr);
             return {
                 processedCount: 1,
-                sentCount: !res.alreadySent && res.log.status !== 'SKIPPED' ? 1 : 0,
-                skippedCount: res.alreadySent || res.log.status === 'SKIPPED' ? 1 : 0,
+                sentCount: !res.alreadySent && res.log?.status !== 'SKIPPED' ? 1 : 0,
+                skippedCount: res.alreadySent || res.log?.status === 'SKIPPED' ? 1 : 0,
                 details: [res],
             };
         }
-        const fourMonthsAgo = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000);
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        const now = new Date();
+        // Query clients whose last visit is at least 30 days ago and have NO upcoming appointments
         const inactiveClients = await database_1.default.client.findMany({
             where: {
                 isActive: true,
                 OR: [
-                    { lastVisitAt: { lte: fourMonthsAgo } },
-                    { lastVisitAt: null },
+                    { lastVisitAt: { lte: thirtyDaysAgo } },
+                    {
+                        lastVisitAt: null,
+                        appointments: {
+                            some: {
+                                status: client_1.AppointmentStatus.COMPLETED,
+                                appointmentDate: { lte: thirtyDaysAgo },
+                            },
+                        },
+                    },
                 ],
+                appointments: {
+                    none: {
+                        status: { in: [client_1.AppointmentStatus.SCHEDULED, client_1.AppointmentStatus.IN_PROGRESS] },
+                        appointmentDate: { gte: now },
+                    },
+                },
             },
             take: 50,
         });
@@ -650,7 +785,7 @@ class WhatsAppService {
         let skippedCount = 0;
         for (const client of inactiveClients) {
             const res = await this.triggerRebooking(client.id, todayStr);
-            if (!res.alreadySent && res.log.status !== 'SKIPPED') {
+            if (!res.alreadySent && res.log?.status !== 'SKIPPED') {
                 sentCount++;
             }
             else {
@@ -669,11 +804,12 @@ class WhatsAppService {
     async triggerDailyCloseBoss(input, authUser) {
         const now = new Date();
         const businessDate = input.businessDate || input.date || now.toISOString().split('T')[0];
-        const event = await notification_event_builder_1.notificationEventBuilder.buildDailyCloseEvent(businessDate, authUser.id, input.recipientPhone);
+        const targetRecipientPhone = input.recipientPhone || this.getBossPhoneNumber();
+        const event = await notification_event_builder_1.notificationEventBuilder.buildDailyCloseEvent(businessDate, authUser.id, targetRecipientPhone);
         const setting = await this.getAutomationByType(whatsapp_types_1.WhatsAppAutomationType.DAILY_CLOSE_BOSS);
         const message = this.compileTemplate(setting.template, event.placeholders);
         return this.dispatchMessage({
-            recipientPhone: event.recipient.phone || '',
+            recipientPhone: event.recipient.phone || targetRecipientPhone,
             message,
             idempotencyKey: event.idempotencyKey,
             automationType: whatsapp_types_1.WhatsAppAutomationType.DAILY_CLOSE_BOSS,
@@ -799,7 +935,36 @@ class WhatsAppService {
         });
     }
     /**
-     * 9. Custom / Direct templated dispatch
+     * 9. Instant New Client Welcome — triggered automatically when a new client is added to the system.
+     */
+    async triggerClientWelcome(clientId) {
+        const client = await database_1.default.client.findUnique({
+            where: { id: clientId },
+        });
+        if (!client) {
+            return { alreadySent: false, log: null, error: 'Client not found' };
+        }
+        const phone = client.phone || client.whatsapp;
+        if (!phone || !phone.trim()) {
+            return { alreadySent: false, log: null, error: 'Client has no phone number' };
+        }
+        const clientName = client.name ? client.name.trim() : 'Valued Guest';
+        const setting = await this.getAutomationByType(whatsapp_types_1.WhatsAppAutomationType.CLIENT_WELCOME);
+        const message = this.compileTemplate(setting.template, { clientName });
+        const idempotencyKey = `client-welcome:${clientId}`;
+        return this.dispatchMessage({
+            recipientPhone: phone.trim(),
+            message,
+            idempotencyKey,
+            automationType: whatsapp_types_1.WhatsAppAutomationType.CLIENT_WELCOME,
+            clientId: client.id,
+            templateName: 'client_welcome',
+            templateLanguage: 'en',
+            templateVariables: [clientName],
+        });
+    }
+    /**
+     * 10. Custom / Direct templated dispatch
      */
     async sendCustomMessage(input) {
         const idempotencyKey = input.idempotencyKey || `custom:${Date.now()}:${Math.random().toString(36).substring(2, 9)}`;
@@ -833,6 +998,14 @@ class WhatsAppService {
             where.invoiceId = query.invoiceId;
         if (query.phone)
             where.recipientPhone = { contains: query.phone.trim() };
+        if (query.search && query.search.trim()) {
+            const q = query.search.trim();
+            where.OR = [
+                { recipientPhone: { contains: q } },
+                { message: { contains: q } },
+                { client: { name: { contains: q } } },
+            ];
+        }
         const [total, logs] = await Promise.all([
             database_1.default.whatsAppMessageLog.count({ where }),
             database_1.default.whatsAppMessageLog.findMany({
@@ -856,6 +1029,92 @@ class WhatsAppService {
                 totalPages: Math.ceil(total / limit),
             },
         };
+    }
+    /**
+     * Purge old WhatsApp message logs
+     * @param daysThreshold Number of days (default 30)
+     */
+    async purgeOldMessageLogs(daysThreshold = 30) {
+        const safeDays = Math.max(1, Math.min(365, daysThreshold));
+        const cutoffDate = new Date();
+        cutoffDate.setDate(cutoffDate.getDate() - safeDays);
+        const result = await database_1.default.whatsAppMessageLog.deleteMany({
+            where: {
+                createdAt: {
+                    lt: cutoffDate,
+                },
+            },
+        });
+        return {
+            deletedCount: result.count,
+            cutoffDate,
+        };
+    }
+    retentionFilePath = path_1.default.join(process.cwd(), 'whatsapp_retention.json');
+    getRetentionDays() {
+        try {
+            if (fs_1.default.existsSync(this.retentionFilePath)) {
+                const raw = fs_1.default.readFileSync(this.retentionFilePath, 'utf8');
+                const data = JSON.parse(raw);
+                if (typeof data.days === 'number' && data.days > 0)
+                    return data.days;
+            }
+        }
+        catch (e) {
+            // fallback to 30
+        }
+        return 30;
+    }
+    setRetentionDays(days) {
+        const safeDays = Math.max(1, Math.min(365, parseInt(String(days), 10) || 30));
+        try {
+            fs_1.default.writeFileSync(this.retentionFilePath, JSON.stringify({ days: safeDays, updatedAt: new Date().toISOString() }), 'utf8');
+        }
+        catch (e) {
+            logger_1.logger.warn('[WhatsApp Service] Could not write retention file', { error: e?.message });
+        }
+        return safeDays;
+    }
+    bossPhoneFilePath = path_1.default.join(process.cwd(), 'whatsapp_boss_phone.json');
+    getBossPhoneNumber() {
+        try {
+            if (fs_1.default.existsSync(this.bossPhoneFilePath)) {
+                const raw = fs_1.default.readFileSync(this.bossPhoneFilePath, 'utf8');
+                const data = JSON.parse(raw);
+                if (data.bossPhone && typeof data.bossPhone === 'string' && data.bossPhone.trim()) {
+                    return data.bossPhone.trim();
+                }
+            }
+        }
+        catch (e) {
+            // fallback
+        }
+        return '+237676761349';
+    }
+    async setBossPhoneNumber(phone) {
+        const cleanPhone = phone.trim();
+        try {
+            fs_1.default.writeFileSync(this.bossPhoneFilePath, JSON.stringify({ bossPhone: cleanPhone, updatedAt: new Date().toISOString() }), 'utf8');
+        }
+        catch (e) {
+            logger_1.logger.warn('[WhatsApp Service] Could not write boss phone file', { error: e?.message });
+        }
+        try {
+            const managerUser = await database_1.default.user.findFirst({
+                where: { role: { name: 'MANAGER' } },
+                include: { staffProfile: true },
+            });
+            if (managerUser?.staffProfile) {
+                await database_1.default.staffProfile.update({
+                    where: { id: managerUser.staffProfile.id },
+                    data: { phone: cleanPhone },
+                });
+            }
+        }
+        catch (e) {
+            logger_1.logger.warn('[WhatsApp Service] Note: Could not sync boss phone to manager profile in DB:', e?.message || e);
+        }
+        return cleanPhone;
     }
     /**
      * Retry message (supports FAILED and QUEUED)

@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { CreateStockInput, RefillStockInput, UpdateStockInput, StockQueryFilter, StockActivityQueryFilter, CreateRetailProductInput, RefillRetailInput, DeductRetailStockInput, AuthContextUser } from './stock.types';
+import { CreateStockInput, RefillStockInput, UpdateStockInput, StockQueryFilter, StockActivityQueryFilter, CreateRetailProductInput, RefillRetailInput, DeductRetailStockInput, AuthContextUser, CreateDailyAuditInput, StockDailyAuditQueryFilter, ReviewDailyAuditInput } from './stock.types';
 export declare class StockService {
     getServiceStock(query: StockQueryFilter): Promise<{
         stock: {
@@ -260,6 +260,130 @@ export declare class StockService {
         message: string;
     }>;
     deleteRetailProduct(id: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    submitDailyAudit(input: CreateDailyAuditInput, user: AuthContextUser): Promise<{
+        technicianName: string;
+        serviceStock: {
+            id: string;
+            name: string;
+            category: string | null;
+            quantity: Prisma.Decimal;
+            unit: string;
+        } | null;
+        technician: {
+            staffProfile: {
+                name: string;
+            } | null;
+            id: string;
+            email: string;
+        };
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: string;
+        technicianId: string;
+        publicId: string | null;
+        date: Date;
+        productName: string;
+        serviceStockId: string | null;
+        photoUrl: string;
+        remarks: string | null;
+        estimatedRemaining: string | null;
+        reviewNotes: string | null;
+        reviewedAt: Date | null;
+        reviewedById: string | null;
+    }>;
+    getDailyAudits(query: StockDailyAuditQueryFilter, user: AuthContextUser): Promise<{
+        audits: {
+            technicianName: string;
+            reviewedByName: string | null;
+            stockQuantity: number | null;
+            serviceStock: {
+                id: string;
+                name: string;
+                category: string | null;
+                quantity: Prisma.Decimal;
+                unit: string;
+            } | null;
+            technician: {
+                staffProfile: {
+                    name: string;
+                } | null;
+                id: string;
+                email: string;
+            };
+            reviewedBy: {
+                staffProfile: {
+                    name: string;
+                } | null;
+                id: string;
+                email: string;
+            } | null;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: string;
+            technicianId: string;
+            publicId: string | null;
+            date: Date;
+            productName: string;
+            serviceStockId: string | null;
+            photoUrl: string;
+            remarks: string | null;
+            estimatedRemaining: string | null;
+            reviewNotes: string | null;
+            reviewedAt: Date | null;
+            reviewedById: string | null;
+        }[];
+        pagination: {
+            total: number;
+            page: number;
+            limit: number;
+            totalPages: number;
+        };
+    }>;
+    reviewDailyAudit(id: string, input: ReviewDailyAuditInput, user: AuthContextUser): Promise<{
+        technicianName: string;
+        reviewedByName: string | undefined;
+        serviceStock: {
+            id: string;
+            name: string;
+            quantity: Prisma.Decimal;
+            unit: string;
+        } | null;
+        technician: {
+            staffProfile: {
+                name: string;
+            } | null;
+            id: string;
+            email: string;
+        };
+        reviewedBy: {
+            staffProfile: {
+                name: string;
+            } | null;
+            id: string;
+            email: string;
+        } | null;
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        status: string;
+        technicianId: string;
+        publicId: string | null;
+        date: Date;
+        productName: string;
+        serviceStockId: string | null;
+        photoUrl: string;
+        remarks: string | null;
+        estimatedRemaining: string | null;
+        reviewNotes: string | null;
+        reviewedAt: Date | null;
+        reviewedById: string | null;
+    }>;
+    deleteDailyAudit(id: string, user: AuthContextUser): Promise<{
         success: boolean;
         message: string;
     }>;

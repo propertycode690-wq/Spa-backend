@@ -7,12 +7,12 @@ const roleMiddleware_1 = require("../../middleware/roleMiddleware");
 const router = (0, express_1.Router)();
 // All client routes require authentication
 router.use(authMiddleware_1.authMiddleware);
-// POST /api/v1/clients — Create Client (Manager, Reception, Technician)
-router.post('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => clients_controller_1.clientsController.createClient(req, res, next));
-// GET /api/v1/clients — Client List (Manager, Reception, Technician)
-router.get('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => clients_controller_1.clientsController.getClients(req, res, next));
-// GET /api/v1/clients/:id — Client Details (Manager, Reception, Technician)
-router.get('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => clients_controller_1.clientsController.getClientById(req, res, next));
+// POST /api/v1/clients — Create Client (Manager, Reception, Technician, Marketer)
+router.post('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => clients_controller_1.clientsController.createClient(req, res, next));
+// GET /api/v1/clients — Client List (Manager, Reception, Technician, Marketer)
+router.get('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => clients_controller_1.clientsController.getClients(req, res, next));
+// GET /api/v1/clients/:id — Client Details (Manager, Reception, Technician, Marketer)
+router.get('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => clients_controller_1.clientsController.getClientById(req, res, next));
 // PUT /api/v1/clients/:id & PATCH /api/v1/clients/:id — Update Client (Manager, Reception only; Technician forbidden)
 router.put('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => clients_controller_1.clientsController.updateClient(req, res, next));
 router.patch('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => clients_controller_1.clientsController.updateClient(req, res, next));

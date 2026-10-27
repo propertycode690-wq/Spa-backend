@@ -5,12 +5,13 @@ export declare class WhatsAppService {
      * Default message templates for all 8 automations.
      */
     private readonly defaultTemplates;
+    private hasSeeded;
     /**
      * Automatically ensure default templates are seeded in database if table is empty.
      */
     ensureSeededAutomations(): Promise<void>;
     /**
-     * Get all automation configurations.
+     * Get all automation configurations (strictly the 9 active canonical types).
      */
     getAutomations(): Promise<{
         id: string;
@@ -35,6 +36,7 @@ export declare class WhatsAppService {
     }>;
     /**
      * Update automation configuration (Manager only).
+     * Direct upsert executes in a single database round-trip (~100-200ms).
      */
     updateAutomation(type: WhatsAppAutomationType, input: UpdateAutomationInput): Promise<{
         id: string;
@@ -224,7 +226,7 @@ export declare class WhatsAppService {
         filename: string;
     }>;
     /**
-     * 6. Rebooking Reminder Trigger
+     * 6. Rebooking Reminder Trigger with Anti-Spam Guards
      */
     triggerRebooking(clientId: string, businessDate?: string): Promise<{
         alreadySent: boolean;
@@ -245,15 +247,44 @@ export declare class WhatsAppService {
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
             scheduledFor: Date | null;
         };
+    } | {
+        alreadySent: boolean;
+        skipped: boolean;
+        reason: string;
+        log: {
+            message: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
+            clientId: string | null;
+            appointmentId: string | null;
+            failureReason: string | null;
+            providerMessageId: string | null;
+            sentAt: Date | null;
+            idempotencyKey: string;
+            invoiceId: string | null;
+            recipientPhone: string;
+            automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
+            scheduledFor: Date | null;
+        };
+    } | {
+        alreadySent: boolean;
+        skipped: boolean;
+        reason: any;
+        log: {
+            status: any;
+        };
     }>;
     /**
      * Process Rebooking Reminders Batch
+     * Strictly targets clients with completed visits >= 30 days ago and NO upcoming bookings.
      */
     processRebookingReminders(clientId?: string): Promise<{
         processedCount: number;
         sentCount: number;
         skippedCount: number;
-        details: {
+        details: ({
             alreadySent: boolean;
             log: {
                 message: string;
@@ -272,7 +303,35 @@ export declare class WhatsAppService {
                 automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
                 scheduledFor: Date | null;
             };
-        }[];
+        } | {
+            alreadySent: boolean;
+            skipped: boolean;
+            reason: string;
+            log: {
+                message: string;
+                id: string;
+                createdAt: Date;
+                updatedAt: Date;
+                status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
+                clientId: string | null;
+                appointmentId: string | null;
+                failureReason: string | null;
+                providerMessageId: string | null;
+                sentAt: Date | null;
+                idempotencyKey: string;
+                invoiceId: string | null;
+                recipientPhone: string;
+                automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
+                scheduledFor: Date | null;
+            };
+        } | {
+            alreadySent: boolean;
+            skipped: boolean;
+            reason: any;
+            log: {
+                status: any;
+            };
+        })[];
     } | {
         processedCount: number;
         sentCount: number;
@@ -359,7 +418,34 @@ export declare class WhatsAppService {
         error: string;
     }>;
     /**
-     * 9. Custom / Direct templated dispatch
+     * 9. Instant New Client Welcome — triggered automatically when a new client is added to the system.
+     */
+    triggerClientWelcome(clientId: string): Promise<{
+        alreadySent: boolean;
+        log: {
+            message: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
+            clientId: string | null;
+            appointmentId: string | null;
+            failureReason: string | null;
+            providerMessageId: string | null;
+            sentAt: Date | null;
+            idempotencyKey: string;
+            invoiceId: string | null;
+            recipientPhone: string;
+            automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
+            scheduledFor: Date | null;
+        };
+    } | {
+        alreadySent: boolean;
+        log: null;
+        error: string;
+    }>;
+    /**
+     * 10. Custom / Direct templated dispatch
      */
     sendCustomMessage(input: SendCustomMessageInput): Promise<{
         alreadySent: boolean;
@@ -426,6 +512,20 @@ export declare class WhatsAppService {
             totalPages: number;
         };
     }>;
+    /**
+     * Purge old WhatsApp message logs
+     * @param daysThreshold Number of days (default 30)
+     */
+    purgeOldMessageLogs(daysThreshold?: number): Promise<{
+        deletedCount: number;
+        cutoffDate: Date;
+    }>;
+    private retentionFilePath;
+    getRetentionDays(): number;
+    setRetentionDays(days: number): number;
+    private bossPhoneFilePath;
+    getBossPhoneNumber(): string;
+    setBossPhoneNumber(phone: string): Promise<string>;
     /**
      * Retry message (supports FAILED and QUEUED)
      */

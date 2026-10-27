@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deductRetailStockSchema = exports.refillRetailSchema = exports.updateRetailProductSchema = exports.createRetailProductSchema = exports.stockActivityQuerySchema = exports.stockQuerySchema = exports.updateStockSchema = exports.refillStockSchema = exports.createStockSchema = void 0;
+exports.reviewDailyAuditSchema = exports.stockDailyAuditQuerySchema = exports.createDailyAuditSchema = exports.deductRetailStockSchema = exports.refillRetailSchema = exports.updateRetailProductSchema = exports.createRetailProductSchema = exports.stockActivityQuerySchema = exports.stockQuerySchema = exports.updateStockSchema = exports.refillStockSchema = exports.createStockSchema = void 0;
 const zod_1 = require("zod");
 const client_1 = require("@prisma/client");
 exports.createStockSchema = zod_1.z.object({
@@ -56,5 +56,26 @@ exports.deductRetailStockSchema = zod_1.z.object({
         productId: zod_1.z.string().uuid('Invalid productId UUID'),
         quantity: zod_1.z.number().int().positive('Quantity must be a positive integer'),
     })).min(1, 'At least one item required'),
+});
+exports.createDailyAuditSchema = zod_1.z.object({
+    serviceStockId: zod_1.z.string().optional().nullable(),
+    productName: zod_1.z.string({ required_error: 'Product name is required' }).min(2, 'Product name must be at least 2 characters'),
+    photoUrl: zod_1.z.string({ required_error: 'Photo is required' }).min(5, 'Valid photo URL is required'),
+    publicId: zod_1.z.string().optional().nullable(),
+    remarks: zod_1.z.string().optional().nullable(),
+    estimatedRemaining: zod_1.z.string().optional().nullable(),
+    date: zod_1.z.string().optional(),
+});
+exports.stockDailyAuditQuerySchema = zod_1.z.object({
+    date: zod_1.z.string().optional(),
+    technicianId: zod_1.z.string().optional(),
+    serviceStockId: zod_1.z.string().optional(),
+    status: zod_1.z.string().optional(),
+    page: zod_1.z.union([zod_1.z.string(), zod_1.z.number()]).optional(),
+    limit: zod_1.z.union([zod_1.z.string(), zod_1.z.number()]).optional(),
+});
+exports.reviewDailyAuditSchema = zod_1.z.object({
+    status: zod_1.z.enum(['REVIEWED', 'FLAGGED']),
+    reviewNotes: zod_1.z.string().optional().nullable(),
 });
 //# sourceMappingURL=stock.validation.js.map

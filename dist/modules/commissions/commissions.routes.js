@@ -16,9 +16,13 @@ router.post('/:id/bonus', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res
 router.patch('/:id/adjust', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => commissions_controller_1.commissionsController.adjustCommission(req, res, next));
 // POST /api/v1/commissions/:id/approve — Manager approve commission
 router.post('/:id/approve', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => commissions_controller_1.commissionsController.approveCommission(req, res, next));
-// GET /api/v1/commissions/:technicianId — Technician report (Manager, Reception, or own Technician)
-router.get('/:technicianId', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => commissions_controller_1.commissionsController.getTechnicianCommissions(req, res, next));
-// GET /api/v1/commissions — List commissions report (Manager/Reception full, Technician own only)
-router.get('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => commissions_controller_1.commissionsController.getCommissions(req, res, next));
+// GET /api/v1/commissions/salary-summary — Authoritative MTD salary & target summary
+router.get('/salary-summary', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => commissions_controller_1.commissionsController.getSalarySummary(req, res, next));
+// POST /api/v1/commissions/payroll/finalize — Freeze & lock monthly payroll record (Manager only)
+router.post('/payroll/finalize', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => commissions_controller_1.commissionsController.finalizePayroll(req, res, next));
+// GET /api/v1/commissions/:technicianId — Technician / Marketer report (Manager, Reception, or own Technician/Marketer)
+router.get('/:technicianId', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => commissions_controller_1.commissionsController.getTechnicianCommissions(req, res, next));
+// GET /api/v1/commissions — List commissions report (Manager/Reception full, Technician/Marketer own only)
+router.get('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => commissions_controller_1.commissionsController.getCommissions(req, res, next));
 exports.default = router;
 //# sourceMappingURL=commissions.routes.js.map

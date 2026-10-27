@@ -158,4 +158,61 @@ export declare const deductRetailStockSchema: z.ZodObject<{
         productId: string;
     }[];
 }>;
+export declare const createDailyAuditSchema: z.ZodObject<{
+    serviceStockId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    productName: z.ZodString;
+    photoUrl: z.ZodString;
+    publicId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    remarks: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    estimatedRemaining: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    date: z.ZodOptional<z.ZodString>;
+}, "strip", z.ZodTypeAny, {
+    productName: string;
+    photoUrl: string;
+    publicId?: string | null | undefined;
+    date?: string | undefined;
+    serviceStockId?: string | null | undefined;
+    remarks?: string | null | undefined;
+    estimatedRemaining?: string | null | undefined;
+}, {
+    productName: string;
+    photoUrl: string;
+    publicId?: string | null | undefined;
+    date?: string | undefined;
+    serviceStockId?: string | null | undefined;
+    remarks?: string | null | undefined;
+    estimatedRemaining?: string | null | undefined;
+}>;
+export declare const stockDailyAuditQuerySchema: z.ZodObject<{
+    date: z.ZodOptional<z.ZodString>;
+    technicianId: z.ZodOptional<z.ZodString>;
+    serviceStockId: z.ZodOptional<z.ZodString>;
+    status: z.ZodOptional<z.ZodString>;
+    page: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+    limit: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
+}, "strip", z.ZodTypeAny, {
+    limit?: string | number | undefined;
+    status?: string | undefined;
+    technicianId?: string | undefined;
+    date?: string | undefined;
+    page?: string | number | undefined;
+    serviceStockId?: string | undefined;
+}, {
+    limit?: string | number | undefined;
+    status?: string | undefined;
+    technicianId?: string | undefined;
+    date?: string | undefined;
+    page?: string | number | undefined;
+    serviceStockId?: string | undefined;
+}>;
+export declare const reviewDailyAuditSchema: z.ZodObject<{
+    status: z.ZodEnum<["REVIEWED", "FLAGGED"]>;
+    reviewNotes: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+}, "strip", z.ZodTypeAny, {
+    status: "REVIEWED" | "FLAGGED";
+    reviewNotes?: string | null | undefined;
+}, {
+    status: "REVIEWED" | "FLAGGED";
+    reviewNotes?: string | null | undefined;
+}>;
 //# sourceMappingURL=stock.validation.d.ts.map

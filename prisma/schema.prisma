@@ -26,6 +26,7 @@ enum RoleName {
   RECEPTION
   TECHNICIAN
   CLEANER
+  MARKETER
 }
 
 enum ClientSource {
@@ -150,6 +151,7 @@ enum WhatsAppAutomationType {
   REBOOKING
   DAILY_SUMMARY
   DAILY_CLOSE_BOSS
+  CLIENT_WELCOME
 }
 
 enum WhatsAppMessageStatus {
@@ -217,19 +219,33 @@ model User {
   approvedCommissions           TechnicianCommission[] @relation("CommissionApprovedBy")
   performedCommissionActivities CommissionActivity[]   @relation("CommissionActivityPerformedBy")
   cleaningRecords               CleaningRecord[]       @relation("CleanerCleaningRecords")
+  penalties                     StaffPenalty[]         @relation("StaffPenalties")
+  recordedPenalties             StaffPenalty[]         @relation("PenaltyRecordedBy")
+  monthlyPayrolls               MonthlyPayrollRecord[] @relation("EmployeeMonthlyPayroll")
+  createdJobSeekers             JobSeeker[]          @relation("JobSeekersCreatedBy")
+  technicianStockAudits         ServiceStockDailyAudit[] @relation("TechnicianDailyStockAudits")
+  reviewedStockAudits           ServiceStockDailyAudit[] @relation("ReviewedDailyStockAudits")
 
   @@index([roleId])
 }
 
 model StaffProfile {
-  id          String   @id @default(uuid())
-  userId      String   @unique
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name        String
-  phone       String?
-  specialties Json?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id             String   @id @default(uuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String
+  phone          String?
+  specialties    Json?
+
+  // Target-Based Salary & Commission Contract Configuration
+  monthlyTarget  Decimal  @default(0) @db.Decimal(10, 2)
+  basePay        Decimal  @default(0) @db.Decimal(10, 2)
+  commissionRate Decimal  @default(0) @db.Decimal(5, 2)
+  fixedSalary    Decimal  @default(0) @db.Decimal(10, 2)
+  targetScope    String   @default("INDIVIDUAL") // "INDIVIDUAL" or "SPA_TOTAL"
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 }
 
 model Client {
@@ -451,6 +467,7 @@ model ServiceStock {
   createdAt  DateTime        @default(now())
   updatedAt  DateTime        @updatedAt
   activities StockActivity[]
+  dailyAudits ServiceStockDailyAudit[]
 
   @@index([name])
   @@index([category])
@@ -474,6 +491,33 @@ model StockActivity {
   @@index([createdById])
   @@index([createdAt])
 }
+
+model ServiceStockDailyAudit {
+  id                 String        @id @default(uuid())
+  serviceStockId     String?
+  serviceStock       ServiceStock? @relation(fields: [serviceStockId], references: [id], onDelete: SetNull)
+  productName        String
+  photoUrl           String        @db.Text
+  publicId           String?
+  remarks            String?       @db.Text
+  estimatedRemaining String?
+  technicianId       String
+  technician         User          @relation("TechnicianDailyStockAudits", fields: [technicianId], references: [id], onDelete: Restrict)
+  date               DateTime      @db.Date
+  status             String        @default("PENDING")
+  reviewedById       String?
+  reviewedBy         User?         @relation("ReviewedDailyStockAudits", fields: [reviewedById], references: [id], onDelete: SetNull)
+  reviewNotes        String?       @db.Text
+  reviewedAt         DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([technicianId])
+  @@index([date])
+  @@index([serviceStockId])
+  @@index([status])
+}
+
 
 model RetailProduct {
   id           String         @id @default(uuid())
@@ -562,6 +606,9 @@ model EmployeeCommission {
   createdAt        DateTime         @default(now())
   updatedAt        DateTime         @updatedAt
 
+  // Inverse relation for technician referral deductions linked to this payout:
+  technicianCommissions TechnicianCommission[] @relation("TechnicianReferralDeductions")
+
   @@index([employeeId])
   @@index([invoiceId])
   @@index([commissionRuleId])
@@ -581,6 +628,12 @@ model TechnicianCommission {
   servicePrice         Decimal              @db.Decimal(10, 2)
   commissionRate       Decimal              @db.Decimal(5, 2)
   baseCommission       Decimal              @db.Decimal(10, 2)
+
+  // Two-way Referral Deduction Foreign-Key Linkage:
+  referralDeduction    Decimal              @default(0) @db.Decimal(10, 2)
+  employeeCommissionId String?
+  employeeCommission   EmployeeCommission?  @relation("TechnicianReferralDeductions", fields: [employeeCommissionId], references: [id], onDelete: SetNull)
+
   bonusAmount          Decimal              @default(0) @db.Decimal(10, 2)
   totalCommission      Decimal              @db.Decimal(10, 2)
   status               CommissionStatus     @default(PENDING)
@@ -594,6 +647,7 @@ model TechnicianCommission {
 
   @@index([technicianId])
   @@index([invoiceId])
+  @@index([employeeCommissionId])
   @@index([status])
   @@index([createdAt])
 }
@@ -804,4 +858,85 @@ model CleaningMedia {
 
   @@index([cleaningRecordId])
 }
+
+model StaffPenalty {
+  id            String   @id @default(uuid())
+  staffId       String
+  staff         User     @relation("StaffPenalties", fields: [staffId], references: [id], onDelete: Cascade)
+  ruleName      String   @db.VarChar(100)
+  penaltyAmount Decimal  @db.Decimal(10, 2)
+  date          DateTime @db.Date
+  notes         String?  @db.Text
+  recordedById  String
+  recordedBy    User     @relation("PenaltyRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([staffId])
+  @@index([date])
+  @@index([recordedById])
+}
+
+model MonthlyPayrollRecord {
+  id                 String   @id @default(uuid())
+  employeeId         String
+  employee           User     @relation("EmployeeMonthlyPayroll", fields: [employeeId], references: [id], onDelete: Restrict)
+  periodYearMonth    String   // e.g. "2026-10"
+  targetScope        String   // "INDIVIDUAL" | "SPA_TOTAL"
+  targetQuota        Decimal  @db.Decimal(10, 2)
+  actualRevenue      Decimal  @db.Decimal(10, 2)
+  isTargetMet        Boolean  @default(false)
+  salaryMode         String   // "FIXED_SALARY" | "BASE_PLUS_COMMISSION"
+  fixedSalaryAmount  Decimal  @db.Decimal(10, 2)
+  basePayAmount      Decimal  @db.Decimal(10, 2)
+  grossCommission    Decimal  @db.Decimal(10, 2)
+  referralDeductions Decimal  @db.Decimal(10, 2)
+  netCommission      Decimal  @db.Decimal(10, 2)
+  finalPayoutAmount  Decimal  @db.Decimal(10, 2)
+  isFinalized        Boolean  @default(false)
+  finalizedById      String?
+  finalizedAt        DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([employeeId, periodYearMonth])
+  @@index([periodYearMonth])
+  @@index([isFinalized])
+}
+
+// Phase 25: Job Seekers & Recruitment Management
+enum JobSeekerStatus {
+  NEW
+  INTERVIEW_SCHEDULED
+  SHORTLISTED
+  HIRED
+  REJECTED
+}
+
+model JobSeeker {
+  id              String          @id @default(uuid())
+  fullName        String
+  phone           String
+  whatsapp        String?
+  email           String?
+  positionApplied String
+  experienceYears Int?            @default(0)
+  specialties     String?
+  expectedSalary  Decimal?        @db.Decimal(10, 2)
+  notes           String?         @db.Text
+  status          JobSeekerStatus @default(NEW)
+  appliedDate     DateTime        @default(now())
+  interviewDate   DateTime?       @db.Date
+  createdById     String?
+  createdBy       User?           @relation("JobSeekersCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([status])
+  @@index([positionApplied])
+  @@index([phone])
+  @@index([createdById])
+  @@index([appliedDate])
+}
+
 

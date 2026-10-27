@@ -1,4 +1,5 @@
 import prisma from '../../config/database';
+import { AppointmentStatus } from '@prisma/client';
 import { AppError } from '../../middleware/errorHandler';
 import { HTTP_STATUS } from '../../config/constants';
 import {
@@ -14,6 +15,8 @@ import {
 import { whatsappAdapter } from './whatsapp.adapter';
 import { notificationEventBuilder } from '../notifications/notification-event.builder';
 import { invoicePdfService } from '../invoices/invoice-pdf.service';
+import fs from 'fs';
+import path from 'path';
 import { logger } from '../../utils/logger';
 
 export function normalizeAutomationType(input: string): WhatsAppAutomationType {
@@ -33,7 +36,7 @@ export class WhatsAppService {
   /**
    * Default message templates for all 8 automations.
    */
-  private readonly defaultTemplates: Record<WhatsAppAutomationType, { template: string; timing: string }> = {
+  private readonly defaultTemplates: Partial<Record<WhatsAppAutomationType, { template: string; timing: string }>> = {
     BIRTHDAY: {
       template: 'Happy Birthday {clientName}! Celebrate your special day at OMEGA SPA with {rewardPoints} bonus loyalty points on us. Book your pampering session today!',
       timing: '09:00',
@@ -68,25 +71,36 @@ export class WhatsAppService {
       template: 'OMEGA SPA Daily Close Summary ({todayDate}): Total Revenue: {totalRevenue} FCFA | Clients Served: {clientsServed} | Cash: {cashAmount} FCFA | MoMo: {momoAmount} FCFA | Orange: {orangeAmount} FCFA.',
       timing: '19:30',
     },
-    APPOINTMENT_REMINDER: {
-      template: 'Hello {clientName}, your appointment at OMEGA SPA is confirmed for {appointmentDate} at {appointmentTime}.',
-      timing: '24h',
-    },
-    INVOICE_THANKYOU: {
-      template: 'Thank you {clientName} for your payment of {amount} FCFA for Invoice {invoiceNumber}.',
+    CLIENT_WELCOME: {
+      template:
+        "Hello {clientName}! 😊 We’d love to welcome you to Omega Spa.\n\nIt’s the perfect time to take a break and treat yourself to some relaxation. ✨ Contact us or book your appointment whenever you're ready.\n\nWe look forward to seeing you soon! 💚",
       timing: 'immediate',
     },
-    DAILY_SUMMARY: {
-      template: 'OMEGA SPA Daily Summary ({todayDate}): Total Revenue: {totalRevenue} FCFA.',
-      timing: '19:30',
-    },
   };
+
+  private hasSeeded = false;
 
   /**
    * Automatically ensure default templates are seeded in database if table is empty.
    */
   async ensureSeededAutomations() {
+    if (this.hasSeeded) return;
+    this.hasSeeded = true;
+    // Purge legacy duplicate types from early schema
+    await prisma.whatsAppAutomation.deleteMany({
+      where: {
+        type: {
+          in: [
+            'APPOINTMENT_REMINDER' as WhatsAppAutomationType,
+            'INVOICE_THANKYOU' as WhatsAppAutomationType,
+            'DAILY_SUMMARY' as WhatsAppAutomationType,
+          ],
+        },
+      },
+    }).catch(() => {});
+
     for (const [type, data] of Object.entries(this.defaultTemplates)) {
+      if (!data) continue;
       const autoType = type as WhatsAppAutomationType;
       await prisma.whatsAppAutomation.upsert({
         where: { type: autoType },
@@ -102,11 +116,20 @@ export class WhatsAppService {
   }
 
   /**
-   * Get all automation configurations.
+   * Get all automation configurations (strictly the 9 active canonical types).
    */
   async getAutomations() {
     await this.ensureSeededAutomations();
     return prisma.whatsAppAutomation.findMany({
+      where: {
+        type: {
+          notIn: [
+            'APPOINTMENT_REMINDER' as WhatsAppAutomationType,
+            'INVOICE_THANKYOU' as WhatsAppAutomationType,
+            'DAILY_SUMMARY' as WhatsAppAutomationType,
+          ],
+        },
+      },
       orderBy: { createdAt: 'asc' },
     });
   }
@@ -127,25 +150,38 @@ export class WhatsAppService {
 
   /**
    * Update automation configuration (Manager only).
+   * Direct upsert executes in a single database round-trip (~100-200ms).
    */
   async updateAutomation(type: WhatsAppAutomationType, input: UpdateAutomationInput) {
-    await this.ensureSeededAutomations();
-    const existing = await prisma.whatsAppAutomation.findUnique({ where: { type } });
-    if (!existing) {
-      throw new AppError(`Automation setting for ${type} not found`, HTTP_STATUS.NOT_FOUND);
-    }
-
     const activeFlag = input.isActive !== undefined ? input.isActive : input.enabled;
     const timeVal = input.timing !== undefined ? input.timing : input.scheduleTime;
+    const defaultData = this.defaultTemplates[type];
 
-    return prisma.whatsAppAutomation.update({
+    const updated = await prisma.whatsAppAutomation.upsert({
       where: { type },
-      data: {
+      create: {
+        type,
+        template: input.template !== undefined ? input.template.trim() : (defaultData?.template || ''),
+        isActive: activeFlag !== undefined ? activeFlag : true,
+        timing: timeVal !== undefined ? (timeVal ? timeVal.trim() : null) : (defaultData?.timing || null),
+      },
+      update: {
         template: input.template !== undefined ? input.template.trim() : undefined,
         isActive: activeFlag !== undefined ? activeFlag : undefined,
         timing: timeVal !== undefined ? (timeVal ? timeVal.trim() : null) : undefined,
       },
     });
+
+    if (timeVal && typeof timeVal === 'string') {
+      try {
+        const { rescheduleWhatsAppJob } = require('./whatsapp.scheduler');
+        rescheduleWhatsAppJob(type, timeVal.trim());
+      } catch (err: any) {
+        logger.warn('[WhatsApp Service] Dynamic reschedule could not be triggered:', err?.message || err);
+      }
+    }
+
+    return updated;
   }
 
   /**
@@ -208,6 +244,29 @@ export class WhatsAppService {
         return {
           alreadySent: true,
           log: existingByAppt,
+        };
+      }
+    }
+
+    // Secondary check B: Strict 30-day anti-spam cooldown specifically for REBOOKING marketing messages
+    if (automationType === WhatsAppAutomationType.REBOOKING && (recipientPhone || clientId)) {
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const existingRebooking = await prisma.whatsAppMessageLog.findFirst({
+        where: {
+          automationType: WhatsAppAutomationType.REBOOKING,
+          OR: [
+            ...(recipientPhone ? [{ recipientPhone }] : []),
+            ...(clientId ? [{ clientId }] : []),
+          ],
+          status: { in: ['SENT', 'DELIVERED', 'QUEUED'] },
+          createdAt: { gte: thirtyDaysAgo },
+        },
+      });
+      if (existingRebooking) {
+        logger.info(`[WhatsApp Dispatch] Skipping rebooking for ${recipientPhone || clientId}: message already sent within 30 days.`);
+        return {
+          alreadySent: true,
+          log: existingRebooking,
         };
       }
     }
@@ -667,10 +726,76 @@ export class WhatsAppService {
   }
 
   /**
-   * 6. Rebooking Reminder Trigger
+   * 6. Rebooking Reminder Trigger with Anti-Spam Guards
    */
   async triggerRebooking(clientId: string, businessDate: string = new Date().toISOString().split('T')[0]) {
-    const event = await notificationEventBuilder.buildRebookingEvent(clientId, businessDate);
+    // 1. Fetch client with upcoming appointments check
+    const client: any = await prisma.client.findUnique({
+      where: { id: clientId },
+      include: {
+        appointments: {
+          where: {
+            status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS] },
+            appointmentDate: { gte: new Date() },
+          },
+          take: 1,
+        },
+      },
+    });
+
+    if (!client) {
+      throw new AppError('Client not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    // Guard A: Skip if client already has an upcoming appointment scheduled
+    if (client.appointments && client.appointments.length > 0) {
+      logger.info(`[WhatsApp Rebooking] Skipped client ${client.name} (${clientId}): Already has an active upcoming appointment.`);
+      return {
+        alreadySent: true,
+        skipped: true,
+        reason: 'Client already has an upcoming appointment scheduled',
+        log: { status: 'SKIPPED' as any },
+      };
+    }
+
+    // Guard B: Check 30-day anti-spam cooldown across WhatsAppMessageLog
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const clientPhone = client.phone || client.whatsapp;
+    if (clientPhone) {
+      const existingRecentLog = await prisma.whatsAppMessageLog.findFirst({
+        where: {
+          automationType: WhatsAppAutomationType.REBOOKING,
+          recipientPhone: clientPhone,
+          status: { in: ['SENT', 'DELIVERED', 'QUEUED'] },
+          createdAt: { gte: thirtyDaysAgo },
+        },
+      });
+
+      if (existingRecentLog) {
+        logger.info(`[WhatsApp Rebooking] Skipped client ${client.name} (${clientPhone}): Received rebooking reminder within last 30 days.`);
+        return {
+          alreadySent: true,
+          skipped: true,
+          reason: 'Client received rebooking reminder within last 30 days',
+          log: existingRecentLog,
+        };
+      }
+    }
+
+    // 2. Build Event safely (checks >= 30 days threshold)
+    let event: any;
+    try {
+      event = await notificationEventBuilder.buildRebookingEvent(clientId, businessDate);
+    } catch (err: any) {
+      logger.info(`[WhatsApp Rebooking] Inactivity requirement not met for client ${clientId}: ${err?.message || err}`);
+      return {
+        alreadySent: true,
+        skipped: true,
+        reason: err?.message || 'Inactivity threshold not met',
+        log: { status: 'SKIPPED' as any },
+      };
+    }
+
     const setting = await this.getAutomationByType(WhatsAppAutomationType.REBOOKING);
     const message = this.compileTemplate(setting.template, event.placeholders);
 
@@ -692,6 +817,7 @@ export class WhatsAppService {
 
   /**
    * Process Rebooking Reminders Batch
+   * Strictly targets clients with completed visits >= 30 days ago and NO upcoming bookings.
    */
   async processRebookingReminders(clientId?: string) {
     await this.ensureSeededAutomations();
@@ -701,20 +827,37 @@ export class WhatsAppService {
       const res = await this.triggerRebooking(clientId, todayStr);
       return {
         processedCount: 1,
-        sentCount: !res.alreadySent && res.log.status !== 'SKIPPED' ? 1 : 0,
-        skippedCount: res.alreadySent || res.log.status === 'SKIPPED' ? 1 : 0,
+        sentCount: !res.alreadySent && res.log?.status !== 'SKIPPED' ? 1 : 0,
+        skippedCount: res.alreadySent || res.log?.status === 'SKIPPED' ? 1 : 0,
         details: [res],
       };
     }
 
-    const fourMonthsAgo = new Date(Date.now() - 120 * 24 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const now = new Date();
+
+    // Query clients whose last visit is at least 30 days ago and have NO upcoming appointments
     const inactiveClients = await prisma.client.findMany({
       where: {
         isActive: true,
         OR: [
-          { lastVisitAt: { lte: fourMonthsAgo } },
-          { lastVisitAt: null },
+          { lastVisitAt: { lte: thirtyDaysAgo } },
+          {
+            lastVisitAt: null,
+            appointments: {
+              some: {
+                status: AppointmentStatus.COMPLETED,
+                appointmentDate: { lte: thirtyDaysAgo },
+              },
+            },
+          },
         ],
+        appointments: {
+          none: {
+            status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.IN_PROGRESS] },
+            appointmentDate: { gte: now },
+          },
+        },
       },
       take: 50,
     });
@@ -724,7 +867,7 @@ export class WhatsAppService {
 
     for (const client of inactiveClients) {
       const res = await this.triggerRebooking(client.id, todayStr);
-      if (!res.alreadySent && res.log.status !== 'SKIPPED') {
+      if (!res.alreadySent && res.log?.status !== 'SKIPPED') {
         sentCount++;
       } else {
         skippedCount++;
@@ -744,13 +887,14 @@ export class WhatsAppService {
   async triggerDailyCloseBoss(input: DailyCloseTriggerInput, authUser: AuthContextUser) {
     const now = new Date();
     const businessDate = input.businessDate || input.date || now.toISOString().split('T')[0];
-    const event = await notificationEventBuilder.buildDailyCloseEvent(businessDate, authUser.id, input.recipientPhone);
+    const targetRecipientPhone = input.recipientPhone || this.getBossPhoneNumber();
+    const event = await notificationEventBuilder.buildDailyCloseEvent(businessDate, authUser.id, targetRecipientPhone);
 
     const setting = await this.getAutomationByType(WhatsAppAutomationType.DAILY_CLOSE_BOSS);
     const message = this.compileTemplate(setting.template, event.placeholders);
 
     return this.dispatchMessage({
-      recipientPhone: event.recipient.phone || '',
+      recipientPhone: event.recipient.phone || targetRecipientPhone,
       message,
       idempotencyKey: event.idempotencyKey,
       automationType: WhatsAppAutomationType.DAILY_CLOSE_BOSS,
@@ -894,7 +1038,41 @@ export class WhatsAppService {
   }
 
   /**
-   * 9. Custom / Direct templated dispatch
+   * 9. Instant New Client Welcome — triggered automatically when a new client is added to the system.
+   */
+  async triggerClientWelcome(clientId: string) {
+    const client = await prisma.client.findUnique({
+      where: { id: clientId },
+    });
+
+    if (!client) {
+      return { alreadySent: false, log: null, error: 'Client not found' };
+    }
+
+    const phone = client.phone || client.whatsapp;
+    if (!phone || !phone.trim()) {
+      return { alreadySent: false, log: null, error: 'Client has no phone number' };
+    }
+
+    const clientName = client.name ? client.name.trim() : 'Valued Guest';
+    const setting = await this.getAutomationByType(WhatsAppAutomationType.CLIENT_WELCOME);
+    const message = this.compileTemplate(setting.template, { clientName });
+    const idempotencyKey = `client-welcome:${clientId}`;
+
+    return this.dispatchMessage({
+      recipientPhone: phone.trim(),
+      message,
+      idempotencyKey,
+      automationType: WhatsAppAutomationType.CLIENT_WELCOME,
+      clientId: client.id,
+      templateName: 'client_welcome',
+      templateLanguage: 'en',
+      templateVariables: [clientName],
+    });
+  }
+
+  /**
+   * 10. Custom / Direct templated dispatch
    */
   async sendCustomMessage(input: SendCustomMessageInput) {
     const idempotencyKey = input.idempotencyKey || `custom:${Date.now()}:${Math.random().toString(36).substring(2, 9)}`;
@@ -925,6 +1103,14 @@ export class WhatsAppService {
     if (query.appointmentId) where.appointmentId = query.appointmentId;
     if (query.invoiceId) where.invoiceId = query.invoiceId;
     if (query.phone) where.recipientPhone = { contains: query.phone.trim() };
+    if (query.search && query.search.trim()) {
+      const q = query.search.trim();
+      where.OR = [
+        { recipientPhone: { contains: q } },
+        { message: { contains: q } },
+        { client: { name: { contains: q } } },
+      ];
+    }
 
     const [total, logs] = await Promise.all([
       prisma.whatsAppMessageLog.count({ where }),
@@ -950,6 +1136,105 @@ export class WhatsAppService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  /**
+   * Purge old WhatsApp message logs
+   * @param daysThreshold Number of days (default 30)
+   */
+  async purgeOldMessageLogs(daysThreshold: number = 30): Promise<{ deletedCount: number; cutoffDate: Date }> {
+    const safeDays = Math.max(1, Math.min(365, daysThreshold));
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - safeDays);
+
+    const result = await prisma.whatsAppMessageLog.deleteMany({
+      where: {
+        createdAt: {
+          lt: cutoffDate,
+        },
+      },
+    });
+
+    return {
+      deletedCount: result.count,
+      cutoffDate,
+    };
+  }
+
+  private retentionFilePath = path.join(process.cwd(), 'whatsapp_retention.json');
+
+  getRetentionDays(): number {
+    try {
+      if (fs.existsSync(this.retentionFilePath)) {
+        const raw = fs.readFileSync(this.retentionFilePath, 'utf8');
+        const data = JSON.parse(raw);
+        if (typeof data.days === 'number' && data.days > 0) return data.days;
+      }
+    } catch (e) {
+      // fallback to 30
+    }
+    return 30;
+  }
+
+  setRetentionDays(days: number): number {
+    const safeDays = Math.max(1, Math.min(365, parseInt(String(days), 10) || 30));
+    try {
+      fs.writeFileSync(
+        this.retentionFilePath,
+        JSON.stringify({ days: safeDays, updatedAt: new Date().toISOString() }),
+        'utf8'
+      );
+    } catch (e: any) {
+      logger.warn('[WhatsApp Service] Could not write retention file', { error: e?.message });
+    }
+    return safeDays;
+  }
+
+  private bossPhoneFilePath = path.join(process.cwd(), 'whatsapp_boss_phone.json');
+
+  getBossPhoneNumber(): string {
+    try {
+      if (fs.existsSync(this.bossPhoneFilePath)) {
+        const raw = fs.readFileSync(this.bossPhoneFilePath, 'utf8');
+        const data = JSON.parse(raw);
+        if (data.bossPhone && typeof data.bossPhone === 'string' && data.bossPhone.trim()) {
+          return data.bossPhone.trim();
+        }
+      }
+    } catch (e) {
+      // fallback
+    }
+    return '+237676761349';
+  }
+
+  async setBossPhoneNumber(phone: string): Promise<string> {
+    const cleanPhone = phone.trim();
+    try {
+      fs.writeFileSync(
+        this.bossPhoneFilePath,
+        JSON.stringify({ bossPhone: cleanPhone, updatedAt: new Date().toISOString() }),
+        'utf8'
+      );
+    } catch (e: any) {
+      logger.warn('[WhatsApp Service] Could not write boss phone file', { error: e?.message });
+    }
+
+    try {
+      const managerUser = await prisma.user.findFirst({
+        where: { role: { name: 'MANAGER' } },
+        include: { staffProfile: true },
+      });
+      if (managerUser?.staffProfile) {
+        await prisma.staffProfile.update({
+          where: { id: managerUser.staffProfile.id },
+          data: { phone: cleanPhone },
+        });
+      }
+    } catch (e: any) {
+      logger.warn('[WhatsApp Service] Note: Could not sync boss phone to manager profile in DB:', e?.message || e);
+    }
+
+    return cleanPhone;
   }
 
   /**

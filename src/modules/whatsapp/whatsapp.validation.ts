@@ -36,6 +36,15 @@ export const logsQuerySchema = z.object({
   appointmentId: z.string().optional(),
   invoiceId: z.string().optional(),
   phone: z.string().optional(),
+  search: z.string().optional(),
   page: z.coerce.number().optional(),
   limit: z.coerce.number().optional(),
+});
+
+export const purgeLogsSchema = z.object({
+  days: z.coerce.number().min(1).max(365).optional().default(30),
+});
+
+export const updateRetentionSchema = z.object({
+  days: z.coerce.number().min(1).max(365),
 });

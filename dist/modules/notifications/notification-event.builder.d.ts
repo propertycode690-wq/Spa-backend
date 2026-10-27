@@ -53,6 +53,7 @@ export declare class NotificationEventBuilder {
     buildPaymentConfirmationEvent(invoiceId: string): Promise<NotificationEventData>;
     /**
      * 6. Rebooking Reminder Event
+     * Strictly enforces minimum 30-day inactivity threshold and monthly idempotency key
      */
     buildRebookingEvent(clientId: string, businessDate?: string): Promise<NotificationEventData>;
     /**

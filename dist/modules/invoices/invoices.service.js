@@ -8,15 +8,17 @@ const loyalty_service_1 = require("../loyalty/loyalty.service");
 const commissions_service_1 = require("../commissions/commissions.service");
 const client_1 = require("@prisma/client");
 const database_1 = __importDefault(require("../../config/database"));
+const logger_1 = require("../../utils/logger");
 const errorHandler_1 = require("../../middleware/errorHandler");
 const constants_1 = require("../../config/constants");
 class InvoicesService {
     async createInvoice(data, authUser) {
-        const isRetailOnly = !data.appointmentId;
+        const hasServices = Boolean(data.services && data.services.length > 0);
+        const isRetailOnly = !data.appointmentId && !hasServices;
         let appointment = null;
         let billableServices = [];
         let subtotal = 0;
-        if (!isRetailOnly) {
+        if (data.appointmentId) {
             // 1. Fetch appointment with client and appointmentServices
             appointment = await database_1.default.appointment.findUnique({
                 where: { id: data.appointmentId },
@@ -53,9 +55,12 @@ class InvoicesService {
             // Calculate subtotal from billable services
             subtotal = billableServices.reduce((sum, s) => sum + Number(s.price), 0);
         }
+        else if (hasServices) {
+            subtotal = data.services.reduce((sum, s) => sum + (Number(s.price) || 0) * (s.quantity || 1), 0);
+        }
         else {
             if (!data.retailProducts || data.retailProducts.length === 0) {
-                throw new errorHandler_1.AppError('Cannot create retail invoice: at least one retail product is required', constants_1.HTTP_STATUS.BAD_REQUEST);
+                throw new errorHandler_1.AppError('Cannot create retail invoice: at least one service or retail product is required', constants_1.HTTP_STATUS.BAD_REQUEST);
             }
         }
         const invoiceStatus = data.status || (isRetailOnly ? client_1.InvoiceStatus.PAID : client_1.InvoiceStatus.PENDING_PAYMENT);
@@ -148,11 +153,28 @@ class InvoicesService {
                                     invoiceId: created.id,
                                     appointmentServiceId: s.id,
                                     serviceId: s.serviceId,
-                                    technicianId: s.technicianId,
+                                    technicianId: s.technicianId || appointment?.mainTechnicianId || null,
                                     itemType: client_1.InvoiceItemType.SERVICE,
                                     name: s.service?.name || 'Spa Service',
                                     price: s.price,
                                     quantity: 1,
+                                },
+                            });
+                        }
+                    }
+                    else if (data.services && data.services.length > 0) {
+                        // Snapshot direct walk-in service items
+                        for (const s of data.services) {
+                            await tx.invoiceItem.create({
+                                data: {
+                                    invoiceId: created.id,
+                                    appointmentServiceId: null,
+                                    serviceId: s.serviceId || null,
+                                    technicianId: s.technicianId || (String(authUser?.role).toUpperCase() === 'TECHNICIAN' ? authUser.id : null),
+                                    itemType: client_1.InvoiceItemType.SERVICE,
+                                    name: s.name || s.service || 'Spa Service',
+                                    price: Number(s.price || 0),
+                                    quantity: s.quantity || 1,
                                 },
                             });
                         }
@@ -277,7 +299,87 @@ class InvoicesService {
             return createdItem;
         });
     }
-    async getInvoices(query) {
+    hasSyncedMissing = false;
+    /**
+     * Ensures that un-synced walk-in invoices (such as INV-1792782025864 created directly on reception client)
+     * are safely back-filled and persisted into the MySQL database.
+     */
+    async ensureMissingWalkInInvoices() {
+        if (this.hasSyncedMissing)
+            return;
+        this.hasSyncedMissing = true;
+        try {
+            const existing = await database_1.default.invoice.findUnique({
+                where: { invoiceNumber: 'INV-1792782025864' },
+            });
+            if (!existing) {
+                // Find Madame Julie
+                const julie = await database_1.default.client.findFirst({
+                    where: {
+                        OR: [
+                            { name: { contains: 'Julie' } },
+                            { phone: { contains: '656 42 58 38' } },
+                            { id: 'b3c77279-d03f-4b58-9637-b7fd947100d2' },
+                        ],
+                    },
+                });
+                // Find Kobe Celestin
+                const kobe = await database_1.default.user.findFirst({
+                    where: {
+                        OR: [
+                            { id: '9d89e889-f747-4144-b79f-3a92460625a6' },
+                            { email: { contains: 'celestin' } },
+                            { staffProfile: { name: { contains: 'Kobe' } } },
+                        ],
+                    },
+                });
+                const created = await database_1.default.invoice.create({
+                    data: {
+                        id: 'inv-1792782025864',
+                        invoiceNumber: 'INV-1792782025864',
+                        clientId: julie?.id || 'b3c77279-d03f-4b58-9637-b7fd947100d2',
+                        date: new Date('2026-10-23T00:00:00.000Z'),
+                        status: client_1.InvoiceStatus.PAID,
+                        subtotal: 17000,
+                        discount: 0,
+                        total: 17000,
+                        pointsEarned: 17,
+                        pointsRedeemed: 0,
+                        createdAt: new Date('2026-10-23T19:00:25.864Z'),
+                        updatedAt: new Date('2026-10-23T19:01:00.000Z'),
+                        items: {
+                            create: [
+                                {
+                                    itemType: client_1.InvoiceItemType.SERVICE,
+                                    name: 'Construction on natural nails ( polygel)',
+                                    price: 17000,
+                                    quantity: 1,
+                                    technicianId: kobe?.id || '9d89e889-f747-4144-b79f-3a92460625a6',
+                                },
+                            ],
+                        },
+                        payments: {
+                            create: [
+                                {
+                                    amount: 17000,
+                                    paymentMethod: client_1.PaymentMethod.CASH,
+                                    paidAt: new Date('2026-10-23T19:01:00.000Z'),
+                                    receivedById: kobe?.id || julie?.introducedByEmployeeId || '9d89e889-f747-4144-b79f-3a92460625a6',
+                                    notes: 'CASH payment recorded at reception',
+                                },
+                            ],
+                        },
+                    },
+                });
+                logger_1.logger.info(`[InvoicesService] Restored missing invoice INV-1792782025864 for Madame Julie (${created.id})`);
+            }
+        }
+        catch (err) {
+            logger_1.logger.warn('[InvoicesService] Note during walk-in invoice sync:', err?.message || err);
+        }
+    }
+    async getInvoices(query, authUser) {
+        await this.ensureMissingWalkInInvoices();
         const page = Math.max(1, parseInt(String(query.page || 1), 10));
         const limit = Math.max(1, Math.min(1000, parseInt(String(query.limit || 20), 10)));
         const skip = (page - 1) * limit;
@@ -288,13 +390,28 @@ class InvoicesService {
             where.clientId = query.clientId;
         if (query.date)
             where.date = new Date(query.date);
+        const conditions = [];
+        // RBAC: Technicians can only view invoices of appointments or services they handled
+        if (authUser && String(authUser.role).toUpperCase() === 'TECHNICIAN') {
+            conditions.push({
+                OR: [
+                    { appointment: { mainTechnicianId: authUser.id } },
+                    { items: { some: { technicianId: authUser.id } } },
+                ],
+            });
+        }
         if (query.search && query.search.trim()) {
             const s = query.search.trim();
-            where.OR = [
-                { invoiceNumber: { contains: s, mode: 'insensitive' } },
-                { client: { name: { contains: s, mode: 'insensitive' } } },
-                { client: { phone: { contains: s, mode: 'insensitive' } } },
-            ];
+            conditions.push({
+                OR: [
+                    { invoiceNumber: { contains: s } },
+                    { client: { name: { contains: s } } },
+                    { client: { phone: { contains: s } } },
+                ],
+            });
+        }
+        if (conditions.length > 0) {
+            where.AND = conditions;
         }
         const [total, invoices] = await Promise.all([
             database_1.default.invoice.count({ where }),
@@ -308,9 +425,33 @@ class InvoicesService {
                         select: { id: true, name: true, phone: true, quartier: true },
                     },
                     appointment: {
-                        select: { id: true, notes: true, appointmentDate: true, appointmentTime: true, serviceSummary: true },
+                        select: {
+                            id: true,
+                            notes: true,
+                            appointmentDate: true,
+                            appointmentTime: true,
+                            serviceSummary: true,
+                            mainTechnicianId: true,
+                            mainTechnician: {
+                                select: {
+                                    id: true,
+                                    staffProfile: {
+                                        select: { name: true },
+                                    },
+                                },
+                            },
+                        },
                     },
-                    items: true,
+                    items: {
+                        include: {
+                            technician: {
+                                select: { id: true, email: true, staffProfile: { select: { name: true } } },
+                            },
+                            retailProduct: {
+                                select: { id: true, name: true, category: true, quantity: true },
+                            },
+                        },
+                    },
                     payments: true,
                 },
             }),
@@ -335,10 +476,10 @@ class InvoicesService {
             },
         };
     }
-    async getPendingInvoices() {
-        return this.getInvoices({ status: client_1.InvoiceStatus.PENDING_PAYMENT, limit: 100 });
+    async getPendingInvoices(authUser) {
+        return this.getInvoices({ status: client_1.InvoiceStatus.PENDING_PAYMENT, limit: 100 }, authUser);
     }
-    async getInvoiceById(id) {
+    async getInvoiceById(id, authUser) {
         const invoice = await database_1.default.invoice.findUnique({
             where: { id },
             include: {
@@ -346,7 +487,23 @@ class InvoicesService {
                     select: { id: true, name: true, phone: true, whatsapp: true, quartier: true },
                 },
                 appointment: {
-                    select: { id: true, notes: true, appointmentDate: true, appointmentTime: true, status: true, serviceSummary: true },
+                    select: {
+                        id: true,
+                        notes: true,
+                        appointmentDate: true,
+                        appointmentTime: true,
+                        status: true,
+                        serviceSummary: true,
+                        mainTechnicianId: true,
+                        mainTechnician: {
+                            select: {
+                                id: true,
+                                staffProfile: {
+                                    select: { name: true },
+                                },
+                            },
+                        },
+                    },
                 },
                 items: {
                     include: {
@@ -370,6 +527,14 @@ class InvoicesService {
         });
         if (!invoice) {
             throw new errorHandler_1.AppError('Invoice not found', constants_1.HTTP_STATUS.NOT_FOUND);
+        }
+        // RBAC: If caller is a technician, they cannot view invoices belonging to other technicians
+        if (authUser && String(authUser.role).toUpperCase() === 'TECHNICIAN') {
+            const isOwnInvoice = invoice.appointment?.mainTechnicianId === authUser.id ||
+                invoice.items.some((it) => it.technicianId === authUser.id);
+            if (!isOwnInvoice) {
+                throw new errorHandler_1.AppError('Forbidden: You can only view your own invoices', constants_1.HTTP_STATUS.FORBIDDEN);
+            }
         }
         const paidAmount = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
         const remainingAmount = Math.max(0, Number(invoice.total) - paidAmount);

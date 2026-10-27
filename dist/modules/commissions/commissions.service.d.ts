@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { CommissionQueryFilter, AddBonusInput, AdjustCommissionInput, SetCommissionRuleInput, AuthContextUser } from './commissions.types';
+import { CommissionQueryFilter, AddBonusInput, AdjustCommissionInput, SetCommissionRuleInput, AuthContextUser, SalarySummaryData } from './commissions.types';
 export declare class CommissionsService {
     /**
      * Automatically calculates and generates technician commissions for a PAID invoice.
@@ -73,7 +73,9 @@ export declare class CommissionsService {
             appointmentServiceId: string | null;
             serviceCategory: string | null;
             serviceName: string;
+            referralDeduction: Prisma.Decimal;
             approvedAt: Date | null;
+            employeeCommissionId: string | null;
             approvedById: string | null;
         }[];
         summary: {
@@ -145,7 +147,9 @@ export declare class CommissionsService {
             appointmentServiceId: string | null;
             serviceCategory: string | null;
             serviceName: string;
+            referralDeduction: Prisma.Decimal;
             approvedAt: Date | null;
+            employeeCommissionId: string | null;
             approvedById: string | null;
         }[];
         summary: {
@@ -189,7 +193,9 @@ export declare class CommissionsService {
         appointmentServiceId: string | null;
         serviceCategory: string | null;
         serviceName: string;
+        referralDeduction: Prisma.Decimal;
         approvedAt: Date | null;
+        employeeCommissionId: string | null;
         approvedById: string | null;
     }>;
     /**
@@ -213,7 +219,9 @@ export declare class CommissionsService {
         appointmentServiceId: string | null;
         serviceCategory: string | null;
         serviceName: string;
+        referralDeduction: Prisma.Decimal;
         approvedAt: Date | null;
+        employeeCommissionId: string | null;
         approvedById: string | null;
     }>;
     /**
@@ -237,7 +245,9 @@ export declare class CommissionsService {
         appointmentServiceId: string | null;
         serviceCategory: string | null;
         serviceName: string;
+        referralDeduction: Prisma.Decimal;
         approvedAt: Date | null;
+        employeeCommissionId: string | null;
         approvedById: string | null;
     }>;
     /**
@@ -263,6 +273,39 @@ export declare class CommissionsService {
         fixedAmount: Prisma.Decimal | null;
         serviceCategory: string | null;
     }[]>;
+    /**
+     * Retrieves Authoritative Monthly Salary & Target Summary for an employee.
+     * Dynamically evaluates Mode A (Fixed Salary) vs Mode B (Base Pay + Commission).
+     * Implements minimum floor guarantee max(S_fixed, Base + Net Commission).
+     */
+    getSalarySummary(technicianId: string, period?: string): Promise<SalarySummaryData>;
+    /**
+     * Finalizes and freezes a month's payroll record for an employee.
+     * - Must be Manager role.
+     * - Immutability guard: if record is already finalized, returns 403 Forbidden.
+     * - Freezes authoritative snapshot into MonthlyPayrollRecord.
+     */
+    finalizeMonthlyPayroll(employeeId: string, period: string, finalizedById: string): Promise<{
+        id: string;
+        createdAt: Date;
+        updatedAt: Date;
+        targetScope: string;
+        employeeId: string;
+        periodYearMonth: string;
+        targetQuota: Prisma.Decimal;
+        actualRevenue: Prisma.Decimal;
+        isTargetMet: boolean;
+        salaryMode: string;
+        fixedSalaryAmount: Prisma.Decimal;
+        basePayAmount: Prisma.Decimal;
+        grossCommission: Prisma.Decimal;
+        referralDeductions: Prisma.Decimal;
+        netCommission: Prisma.Decimal;
+        finalPayoutAmount: Prisma.Decimal;
+        isFinalized: boolean;
+        finalizedById: string | null;
+        finalizedAt: Date | null;
+    }>;
 }
 export declare const commissionsService: CommissionsService;
 //# sourceMappingURL=commissions.service.d.ts.map

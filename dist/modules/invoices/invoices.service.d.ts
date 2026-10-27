@@ -16,9 +16,16 @@ export declare class InvoicesService {
             id: string;
             status: import(".prisma/client").$Enums.AppointmentStatus;
             appointmentDate: Date;
+            mainTechnicianId: string;
             appointmentTime: string;
             serviceSummary: string | null;
             notes: string | null;
+            mainTechnician: {
+                staffProfile: {
+                    name: string;
+                } | null;
+                id: string;
+            };
         } | null;
         items: ({
             retailProduct: {
@@ -97,7 +104,13 @@ export declare class InvoicesService {
         productName: string | null;
         quantity: number;
     }>;
-    getInvoices(query: InvoiceQueryFilter): Promise<{
+    private hasSyncedMissing;
+    /**
+     * Ensures that un-synced walk-in invoices (such as INV-1792782025864 created directly on reception client)
+     * are safely back-filled and persisted into the MySQL database.
+     */
+    ensureMissingWalkInInvoices(): Promise<void>;
+    getInvoices(query: InvoiceQueryFilter, authUser?: AuthContextUser): Promise<{
         invoices: {
             notes: string | null;
             paidAmount: number;
@@ -111,11 +124,32 @@ export declare class InvoicesService {
             appointment: {
                 id: string;
                 appointmentDate: Date;
+                mainTechnicianId: string;
                 appointmentTime: string;
                 serviceSummary: string | null;
                 notes: string | null;
+                mainTechnician: {
+                    staffProfile: {
+                        name: string;
+                    } | null;
+                    id: string;
+                };
             } | null;
-            items: {
+            items: ({
+                retailProduct: {
+                    id: string;
+                    name: string;
+                    category: import(".prisma/client").$Enums.RetailCategory;
+                    quantity: number;
+                } | null;
+                technician: {
+                    staffProfile: {
+                        name: string;
+                    } | null;
+                    id: string;
+                    email: string;
+                } | null;
+            } & {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
@@ -129,7 +163,7 @@ export declare class InvoicesService {
                 itemType: import(".prisma/client").$Enums.InvoiceItemType;
                 productName: string | null;
                 quantity: number;
-            }[];
+            })[];
             payments: {
                 id: string;
                 createdAt: Date;
@@ -162,7 +196,7 @@ export declare class InvoicesService {
             totalPages: number;
         };
     }>;
-    getPendingInvoices(): Promise<{
+    getPendingInvoices(authUser?: AuthContextUser): Promise<{
         invoices: {
             notes: string | null;
             paidAmount: number;
@@ -176,11 +210,32 @@ export declare class InvoicesService {
             appointment: {
                 id: string;
                 appointmentDate: Date;
+                mainTechnicianId: string;
                 appointmentTime: string;
                 serviceSummary: string | null;
                 notes: string | null;
+                mainTechnician: {
+                    staffProfile: {
+                        name: string;
+                    } | null;
+                    id: string;
+                };
             } | null;
-            items: {
+            items: ({
+                retailProduct: {
+                    id: string;
+                    name: string;
+                    category: import(".prisma/client").$Enums.RetailCategory;
+                    quantity: number;
+                } | null;
+                technician: {
+                    staffProfile: {
+                        name: string;
+                    } | null;
+                    id: string;
+                    email: string;
+                } | null;
+            } & {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
@@ -194,7 +249,7 @@ export declare class InvoicesService {
                 itemType: import(".prisma/client").$Enums.InvoiceItemType;
                 productName: string | null;
                 quantity: number;
-            }[];
+            })[];
             payments: {
                 id: string;
                 createdAt: Date;
@@ -227,7 +282,7 @@ export declare class InvoicesService {
             totalPages: number;
         };
     }>;
-    getInvoiceById(id: string): Promise<{
+    getInvoiceById(id: string, authUser?: AuthContextUser): Promise<{
         notes: string | null;
         paidAmount: number;
         remainingAmount: number;
@@ -242,9 +297,16 @@ export declare class InvoicesService {
             id: string;
             status: import(".prisma/client").$Enums.AppointmentStatus;
             appointmentDate: Date;
+            mainTechnicianId: string;
             appointmentTime: string;
             serviceSummary: string | null;
             notes: string | null;
+            mainTechnician: {
+                staffProfile: {
+                    name: string;
+                } | null;
+                id: string;
+            };
         } | null;
         items: ({
             retailProduct: {
@@ -323,9 +385,16 @@ export declare class InvoicesService {
             id: string;
             status: import(".prisma/client").$Enums.AppointmentStatus;
             appointmentDate: Date;
+            mainTechnicianId: string;
             appointmentTime: string;
             serviceSummary: string | null;
             notes: string | null;
+            mainTechnician: {
+                staffProfile: {
+                    name: string;
+                } | null;
+                id: string;
+            };
         } | null;
         items: ({
             retailProduct: {

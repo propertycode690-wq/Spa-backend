@@ -37,7 +37,7 @@ class ClientsController {
         try {
             const validation = clients_validation_1.clientQuerySchema.safeParse(req.query);
             const query = validation.success ? validation.data : req.query;
-            const result = await clients_service_1.clientsService.getClients(query);
+            const result = await clients_service_1.clientsService.getClients(query, req.user);
             res.status(constants_1.HTTP_STATUS.OK).json({
                 success: true,
                 data: result.clients,
@@ -51,7 +51,7 @@ class ClientsController {
     async getClientById(req, res, next) {
         try {
             const id = getParamId(req);
-            const client = await clients_service_1.clientsService.getClientById(id);
+            const client = await clients_service_1.clientsService.getClientById(id, req.user);
             res.status(constants_1.HTTP_STATUS.OK).json({
                 success: true,
                 data: client,

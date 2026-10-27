@@ -11,6 +11,16 @@ router.get('/webhook', (req, res, next) => whatsappController.verifyWebhook(req,
 // Inbound webhook: POST for delivery status updates (public endpoint)
 router.post('/webhook', (req, res, next) => whatsappController.handleWebhook(req, res, next));
 
+// Public ping route to verify WhatsApp module deployment and routes
+router.get('/ping', (_req, res) => {
+  res.status(200).json({
+    status: 'ok',
+    module: 'whatsapp',
+    version: '1.2.0',
+    retentionEndpointReady: true,
+  });
+});
+
 // All subsequent routes require authentication
 router.use(authMiddleware);
 
@@ -69,6 +79,11 @@ router.post('/triggers/daily-close', allowRoles('MANAGER'), (req, res, next) =>
   whatsappController.triggerDailyClose(req, res, next)
 );
 
+// POST /api/v1/whatsapp/triggers/client-welcome - Welcome message trigger (Manager, Reception)
+router.post('/triggers/client-welcome', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+  whatsappController.triggerClientWelcome(req, res, next)
+);
+
 // POST /api/v1/whatsapp/triggers/send - Dispatch single custom message with idempotency (Manager, Reception)
 router.post('/triggers/send', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
   whatsappController.sendCustom(req, res, next)
@@ -82,6 +97,31 @@ router.get('/logs', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
 // POST /api/v1/whatsapp/logs/:id/retry - Retry message (Manager, Reception)
 router.post('/logs/:id/retry', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
   whatsappController.retryMessage(req, res, next)
+);
+
+// POST /api/v1/whatsapp/logs/purge - Purge old message logs (Manager only)
+router.post('/logs/purge', allowRoles('MANAGER'), (req, res, next) =>
+  whatsappController.purgeOldLogs(req, res, next)
+);
+
+// GET /api/v1/whatsapp/settings/retention - View retention policy (Manager, Reception)
+router.get('/settings/retention', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+  whatsappController.getRetentionSettings(req, res, next)
+);
+
+// PATCH /api/v1/whatsapp/settings/retention - Update auto-cleanup retention days (Manager only)
+router.patch('/settings/retention', allowRoles('MANAGER'), (req, res, next) =>
+  whatsappController.updateRetentionSettings(req, res, next)
+);
+
+// GET /api/v1/whatsapp/settings/boss-phone - View configured Boss WhatsApp phone (Manager, Reception)
+router.get('/settings/boss-phone', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+  whatsappController.getBossPhone(req, res, next)
+);
+
+// POST /api/v1/whatsapp/settings/boss-phone - Update configured Boss WhatsApp phone (Manager only)
+router.post('/settings/boss-phone', allowRoles('MANAGER'), (req, res, next) =>
+  whatsappController.updateBossPhone(req, res, next)
 );
 
 export default router;

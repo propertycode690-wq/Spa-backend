@@ -13,6 +13,14 @@
  * Automatically initialized during backend startup via server.ts.
  */
 /**
+ * Converts "HH:mm" (e.g. "10:00", "19:30") into a cron expression ("0 10 * * *", "30 19 * * *")
+ */
+export declare function timeStringToCron(timeStr: string, defaultHour?: number, defaultMinute?: number): string;
+/**
+ * Dynamically reschedules an automation job to a new time without server restart.
+ */
+export declare function rescheduleWhatsAppJob(type: string, newTiming: string): boolean;
+/**
  * Initializes all WhatsApp automation cron jobs
  */
 export declare function initWhatsAppScheduler(): void;

@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.logsQuerySchema = exports.processRemindersQuerySchema = exports.dailyCloseTriggerSchema = exports.sendCustomMessageSchema = exports.updateAutomationSchema = void 0;
+exports.updateRetentionSchema = exports.purgeLogsSchema = exports.logsQuerySchema = exports.processRemindersQuerySchema = exports.dailyCloseTriggerSchema = exports.sendCustomMessageSchema = exports.updateAutomationSchema = void 0;
 const zod_1 = require("zod");
 const whatsapp_types_1 = require("./whatsapp.types");
 exports.updateAutomationSchema = zod_1.z.object({
@@ -34,7 +34,14 @@ exports.logsQuerySchema = zod_1.z.object({
     appointmentId: zod_1.z.string().optional(),
     invoiceId: zod_1.z.string().optional(),
     phone: zod_1.z.string().optional(),
+    search: zod_1.z.string().optional(),
     page: zod_1.z.coerce.number().optional(),
     limit: zod_1.z.coerce.number().optional(),
+});
+exports.purgeLogsSchema = zod_1.z.object({
+    days: zod_1.z.coerce.number().min(1).max(365).optional().default(30),
+});
+exports.updateRetentionSchema = zod_1.z.object({
+    days: zod_1.z.coerce.number().min(1).max(365),
 });
 //# sourceMappingURL=whatsapp.validation.js.map

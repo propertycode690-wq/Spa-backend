@@ -63,6 +63,8 @@ const media_routes_1 = __importDefault(require("./modules/media/media.routes"));
 const attendance_routes_1 = __importDefault(require("./modules/attendance/attendance.routes"));
 const social_routes_1 = __importDefault(require("./modules/social/social.routes"));
 const feedback_routes_1 = require("./modules/feedback/feedback.routes");
+const penalties_routes_1 = __importDefault(require("./modules/penalties/penalties.routes"));
+const job_seekers_routes_1 = __importDefault(require("./modules/job-seekers/job-seekers.routes"));
 const path_1 = __importDefault(require("path"));
 const app = (0, express_1.default)();
 // ==================================================
@@ -133,6 +135,9 @@ else {
 app.get('/', (_req, res) => {
     res.status(200).json({
         message: 'OMEGA SPA POS Backend Running',
+        version: '1.2.1',
+        build: '2026-10-22-production',
+        retentionReady: true,
     });
 });
 // ==================================================
@@ -163,6 +168,8 @@ app.use('/api/v1/social', social_routes_1.default);
 app.use('/api/v1/public/feedback', feedback_routes_1.publicFeedbackRouter);
 app.use('/api/v1/client-feedback', feedback_routes_1.clientFeedbackRouter);
 app.use('/api/v1/feedback', feedback_routes_1.feedbackRouter);
+app.use('/api/v1/penalties', penalties_routes_1.default);
+app.use('/api/v1/job-seekers', job_seekers_routes_1.default);
 // ==================================================
 // Error Handling Middleware
 // ==================================================

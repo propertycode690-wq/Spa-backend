@@ -25,6 +25,8 @@ import mediaRoutes from './modules/media/media.routes';
 import attendanceRoutes from './modules/attendance/attendance.routes';
 import socialRoutes from './modules/social/social.routes';
 import { publicFeedbackRouter, clientFeedbackRouter, feedbackRouter } from './modules/feedback/feedback.routes';
+import penaltiesRoutes from './modules/penalties/penalties.routes';
+import jobSeekersRoutes from './modules/job-seekers/job-seekers.routes';
 import path from 'path';
 
 const app = express();
@@ -108,6 +110,9 @@ if (env.NODE_ENV === 'development') {
 app.get('/', (_req, res) => {
   res.status(200).json({
     message: 'OMEGA SPA POS Backend Running',
+    version: '1.2.2',
+    build: '2026-10-27-stock-audit',
+    retentionReady: true,
   });
 });
 
@@ -139,6 +144,8 @@ app.use('/api/v1/social', socialRoutes);
 app.use('/api/v1/public/feedback', publicFeedbackRouter);
 app.use('/api/v1/client-feedback', clientFeedbackRouter);
 app.use('/api/v1/feedback', feedbackRouter);
+app.use('/api/v1/penalties', penaltiesRoutes);
+app.use('/api/v1/job-seekers', jobSeekersRoutes);
 
 // ==================================================
 // Error Handling Middleware

@@ -214,11 +214,17 @@ class AppointmentsService {
         const limit = Math.max(1, Math.min(100, parseInt(String(query.limit || 20), 10)));
         const skip = (page - 1) * limit;
         const where = {};
-        // RBAC: Technician can ONLY view assigned appointments
+        // RBAC: Technician can ONLY view assigned appointments; Marketer can view their introduced/created appointments
         if (authUser.role === 'TECHNICIAN') {
             where.OR = [
                 { mainTechnicianId: authUser.id },
                 { appointmentServices: { some: { technicianId: authUser.id } } },
+            ];
+        }
+        else if (authUser.role === 'MARKETER') {
+            where.OR = [
+                { createdById: authUser.id },
+                { client: { introducedByEmployeeId: authUser.id } },
             ];
         }
         else if (query.technicianId) {
@@ -280,7 +286,7 @@ class AppointmentsService {
             where: { id },
             include: {
                 client: {
-                    select: { id: true, name: true, phone: true, whatsapp: true, quartier: true },
+                    select: { id: true, name: true, phone: true, whatsapp: true, quartier: true, introducedByEmployeeId: true },
                 },
                 mainTechnician: {
                     select: {
@@ -309,12 +315,19 @@ class AppointmentsService {
         if (!appointment) {
             throw new errorHandler_1.AppError('Appointment not found', constants_1.HTTP_STATUS.NOT_FOUND);
         }
-        // RBAC: Technician cannot view other technicians' appointments
+        // RBAC: Technician cannot view other technicians' appointments; Marketer cannot view unrelated appointments
         if (authUser.role === 'TECHNICIAN') {
             const isMain = appointment.mainTechnicianId === authUser.id;
             const isParticipant = appointment.appointmentServices.some((s) => s.technicianId === authUser.id);
             if (!isMain && !isParticipant) {
                 throw new errorHandler_1.AppError('Access forbidden: you can only view your assigned appointments', constants_1.HTTP_STATUS.FORBIDDEN);
+            }
+        }
+        else if (authUser.role === 'MARKETER') {
+            const isCreator = appointment.createdById === authUser.id;
+            const isClientIntroduced = appointment.client?.introducedByEmployeeId === authUser.id;
+            if (!isCreator && !isClientIntroduced) {
+                throw new errorHandler_1.AppError('Access forbidden: you can only view appointments for your introduced clients', constants_1.HTTP_STATUS.FORBIDDEN);
             }
         }
         return appointment;
@@ -448,6 +461,13 @@ class AppointmentsService {
                         completedAt: new Date(),
                     },
                 });
+                // Stamp Client lastVisitAt upon appointment completion
+                if (appointment.clientId) {
+                    await tx.client.update({
+                        where: { id: appointment.clientId },
+                        data: { lastVisitAt: new Date() },
+                    });
+                }
             }
             // Log ClientHistory: STATUS_CHANGED
             await tx.clientHistory.create({

@@ -7,7 +7,7 @@ export declare const createClientSchema: z.ZodObject<{
     birthday: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     anniversary: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     source: z.ZodOptional<z.ZodEnum<["DIRECT", "STAFF_REFERRAL", "CLIENT_REFERRAL"]>>;
-    introducedByEmployeeId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    introducedByEmployeeId: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodLiteral<"">, z.ZodNull]>>;
     referredByClientId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     recommendedByName: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     recommendedByPhone: z.ZodNullable<z.ZodOptional<z.ZodString>>;
@@ -96,17 +96,20 @@ export declare const clientQuerySchema: z.ZodObject<{
     search: z.ZodOptional<z.ZodString>;
     status: z.ZodOptional<z.ZodEnum<["ALL", "ACTIVE", "INACTIVE", "all", "active", "inactive"]>>;
     isActive: z.ZodOptional<z.ZodUnion<[z.ZodBoolean, z.ZodString]>>;
+    introducedByEmployeeId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     limit?: string | number | undefined;
     search?: string | undefined;
     isActive?: string | boolean | undefined;
     status?: "ACTIVE" | "INACTIVE" | "active" | "inactive" | "ALL" | "all" | undefined;
+    introducedByEmployeeId?: string | undefined;
     page?: string | number | undefined;
 }, {
     limit?: string | number | undefined;
     search?: string | undefined;
     isActive?: string | boolean | undefined;
     status?: "ACTIVE" | "INACTIVE" | "active" | "inactive" | "ALL" | "all" | undefined;
+    introducedByEmployeeId?: string | undefined;
     page?: string | number | undefined;
 }>;
 //# sourceMappingURL=clients.validation.d.ts.map

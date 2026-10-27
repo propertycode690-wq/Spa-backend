@@ -11,6 +11,7 @@ export declare class WhatsAppController {
     updateAutomation(req: Request, res: Response, next: NextFunction): Promise<void>;
     processReminders(_req: Request, res: Response, next: NextFunction): Promise<void>;
     triggerDailyClose(req: Request, res: Response, next: NextFunction): Promise<void>;
+    triggerClientWelcome(req: Request, res: Response, next: NextFunction): Promise<void>;
     triggerAfterService(req: Request, res: Response, next: NextFunction): Promise<void>;
     triggerPaymentConfirmation(req: Request, res: Response, next: NextFunction): Promise<void>;
     sendInvoicePdf(req: Request, res: Response, next: NextFunction): Promise<void>;
@@ -20,6 +21,11 @@ export declare class WhatsAppController {
     sendCustom(req: Request, res: Response, next: NextFunction): Promise<void>;
     getLogs(req: Request, res: Response, next: NextFunction): Promise<void>;
     retryMessage(req: Request, res: Response, next: NextFunction): Promise<void>;
+    purgeOldLogs(req: Request, res: Response, next: NextFunction): Promise<void>;
+    getRetentionSettings(_req: Request, res: Response, next: NextFunction): Promise<void>;
+    updateRetentionSettings(req: Request, res: Response, next: NextFunction): Promise<void>;
+    getBossPhone(_req: Request, res: Response, next: NextFunction): Promise<void>;
+    updateBossPhone(req: Request, res: Response, next: NextFunction): Promise<void>;
     handleWebhook(req: Request, res: Response, next: NextFunction): Promise<void>;
 }
 export declare const whatsappController: WhatsAppController;

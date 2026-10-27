@@ -111,6 +111,54 @@ class CommissionsController {
             next(error);
         }
     }
+    async getSalarySummary(req, res, next) {
+        try {
+            const authUser = req.user;
+            let targetTechnicianId = req.query.technicianId || authUser.id;
+            // Scoping: Non-managers can only view their own salary summary
+            if (authUser.role !== 'MANAGER') {
+                targetTechnicianId = authUser.id;
+            }
+            const period = req.query.period;
+            const result = await commissions_service_1.commissionsService.getSalarySummary(targetTechnicianId, period);
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                data: result,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async finalizePayroll(req, res, next) {
+        try {
+            const { employeeId, period } = req.body;
+            if (!employeeId || !period) {
+                res.status(constants_1.HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    error: 'employeeId and period (YYYY-MM) are required.',
+                });
+                return;
+            }
+            const authUser = req.user;
+            const result = await commissions_service_1.commissionsService.finalizeMonthlyPayroll(employeeId, period, authUser.id);
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Monthly payroll successfully finalized and locked.',
+                data: result,
+            });
+        }
+        catch (error) {
+            if (error.statusCode === 403) {
+                res.status(constants_1.HTTP_STATUS.FORBIDDEN).json({
+                    success: false,
+                    error: error.message,
+                });
+                return;
+            }
+            next(error);
+        }
+    }
 }
 exports.CommissionsController = CommissionsController;
 exports.commissionsController = new CommissionsController();

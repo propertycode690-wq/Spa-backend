@@ -14,6 +14,10 @@ export declare class StockController {
     deductRetailStock(req: Request, res: Response, next: NextFunction): Promise<void>;
     deleteServiceStock(req: Request, res: Response, next: NextFunction): Promise<void>;
     deleteRetailProduct(req: Request, res: Response, next: NextFunction): Promise<void>;
+    submitDailyAudit(req: Request, res: Response, next: NextFunction): Promise<void>;
+    getDailyAudits(req: Request, res: Response, next: NextFunction): Promise<void>;
+    reviewDailyAudit(req: Request, res: Response, next: NextFunction): Promise<void>;
+    deleteDailyAudit(req: Request, res: Response, next: NextFunction): Promise<void>;
 }
 export declare const stockController: StockController;
 //# sourceMappingURL=stock.controller.d.ts.map

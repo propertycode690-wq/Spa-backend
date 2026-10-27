@@ -56,6 +56,8 @@ class CommissionsService {
             }
         }
         const serviceItems = invoice.items.filter((item) => item.itemType === client_1.InvoiceItemType.SERVICE && item.technicianId);
+        // Generate employee referral commission if client was introduced by staff
+        const referralRecord = await this.generateEmployeeReferralCommission(invoiceId, client);
         for (const item of serviceItems) {
             const category = (item.service?.category || '').toLowerCase();
             const sName = item.name.toLowerCase();
@@ -76,6 +78,20 @@ class CommissionsService {
             }
             const itemTotal = Number(item.price) * item.quantity;
             const baseCommission = Math.round(((itemTotal * rate) / 100) * 100) / 100;
+            // Two-way Referral Commission Deduction (Section 4 & 6.2):
+            // When client is referred by staff, the referring staff's commission is deducted from technician's gross commission
+            let referralDeduction = 0;
+            if (referralRecord) {
+                if (referralRecord.rulePercentage > 0) {
+                    referralDeduction = Math.round(((itemTotal * referralRecord.rulePercentage) / 100) * 100) / 100;
+                }
+                else if (referralRecord.fixedAmount > 0 && serviceItems.length > 0) {
+                    referralDeduction = Math.round((referralRecord.fixedAmount / serviceItems.length) * 100) / 100;
+                }
+                // Cap referral deduction at technician's gross commission so technician commission never drops below 0
+                referralDeduction = Math.min(baseCommission, referralDeduction);
+            }
+            const netCommission = Math.max(0, baseCommission - referralDeduction);
             const commission = await client.technicianCommission.create({
                 data: {
                     technicianId: item.technicianId,
@@ -87,10 +103,14 @@ class CommissionsService {
                     servicePrice: new client_1.Prisma.Decimal(itemTotal),
                     commissionRate: new client_1.Prisma.Decimal(rate),
                     baseCommission: new client_1.Prisma.Decimal(baseCommission),
+                    referralDeduction: new client_1.Prisma.Decimal(referralDeduction),
+                    employeeCommissionId: referralRecord ? referralRecord.id : null,
                     bonusAmount: new client_1.Prisma.Decimal(0),
-                    totalCommission: new client_1.Prisma.Decimal(baseCommission),
+                    totalCommission: new client_1.Prisma.Decimal(netCommission),
                     status: client_1.CommissionStatus.PENDING,
-                    notes: `Generated on payment for Invoice ${invoice.invoiceNumber}`,
+                    notes: referralDeduction > 0
+                        ? `Generated on payment for Invoice ${invoice.invoiceNumber} (Referral deduction: -${referralDeduction} FCFA)`
+                        : `Generated on payment for Invoice ${invoice.invoiceNumber}`,
                 },
             });
             // Audit trail: log CommissionActivity
@@ -98,15 +118,15 @@ class CommissionsService {
                 data: {
                     technicianCommissionId: commission.id,
                     type: client_1.CommissionActivityType.GENERATED,
-                    amount: new client_1.Prisma.Decimal(baseCommission),
+                    amount: new client_1.Prisma.Decimal(netCommission),
                     previousTotal: new client_1.Prisma.Decimal(0),
-                    newTotal: new client_1.Prisma.Decimal(baseCommission),
-                    reason: `Commission generated at ${rate}% for service "${item.name}" upon payment of Invoice ${invoice.invoiceNumber}`,
+                    newTotal: new client_1.Prisma.Decimal(netCommission),
+                    reason: referralDeduction > 0
+                        ? `Commission generated at ${rate}% for service "${item.name}" (${baseCommission} FCFA gross, -${referralDeduction} FCFA referral deduction, ${netCommission} FCFA net) upon payment of Invoice ${invoice.invoiceNumber}`
+                        : `Commission generated at ${rate}% for service "${item.name}" upon payment of Invoice ${invoice.invoiceNumber}`,
                 },
             });
         }
-        // Generate employee referral commission if the client was introduced by an employee
-        await this.generateEmployeeReferralCommission(invoiceId, client);
     }
     /**
      * Generates EmployeeCommission for the employee who introduced the client.
@@ -138,46 +158,68 @@ class CommissionsService {
         // Verify the referring employee exists, is active, and is NOT a Manager
         const employee = await client.user.findUnique({
             where: { id: employeeId },
-            include: { role: true },
+            include: { role: true, staffProfile: true },
         });
         if (!employee || !employee.isActive)
             return;
         if (employee.role?.name === 'MANAGER')
             return;
+        // Staff personalized contract commissionRate takes highest precedence
+        const contractRate = Number(employee.staffProfile?.commissionRate || 0);
         // Idempotency: Check if EmployeeCommission already exists for this invoice + employee
-        const existingEmployeeComm = await client.employeeCommission.count({
+        const existingEmployeeComm = await client.employeeCommission.findFirst({
             where: { invoiceId, employeeId },
+            include: { commissionRule: true },
         });
-        if (existingEmployeeComm > 0)
-            return;
-        // Look up active REFERRAL commission rule
-        const referralRules = await client.commissionRule.findMany({
-            where: { type: client_1.CommissionType.REFERRAL, isActive: true },
-        });
-        if (referralRules.length === 0)
-            return; // No referral rule configured — skip
-        const rule = referralRules[0]; // Use the first active referral rule
-        const invoiceTotal = Number(invoice.total);
-        // Calculate referral commission: percentage of invoice total, or fixed amount
-        let commissionAmount = 0;
-        if (rule.fixedAmount && Number(rule.fixedAmount) > 0) {
-            commissionAmount = Number(rule.fixedAmount);
+        if (existingEmployeeComm) {
+            const activeRate = contractRate > 0 ? contractRate : Number(existingEmployeeComm.commissionRule?.percentage || 0);
+            return {
+                id: existingEmployeeComm.id,
+                rulePercentage: activeRate,
+                fixedAmount: Number(existingEmployeeComm.commissionRule?.fixedAmount || 0),
+            };
         }
-        else {
-            commissionAmount = Math.round(((invoiceTotal * Number(rule.percentage)) / 100) * 100) / 100;
+        // Look up active REFERRAL or General commission rule fallback
+        const referralRules = await client.commissionRule.findMany({
+            where: {
+                isActive: true,
+                OR: [
+                    { type: client_1.CommissionType.REFERRAL },
+                    { serviceCategory: 'General' },
+                    { serviceCategory: 'Referral' },
+                ],
+            },
+            orderBy: { updatedAt: 'desc' },
+        });
+        const rule = referralRules[0] || null;
+        const invoiceTotal = Number(invoice.total);
+        // Calculate referral commission: prioritize employee contract rate over generic rule
+        let rulePercentage = contractRate > 0 ? contractRate : Number(rule?.percentage || 0);
+        let fixedAmount = rule?.fixedAmount ? Number(rule.fixedAmount) : 0;
+        let commissionAmount = 0;
+        if (fixedAmount > 0 && contractRate <= 0) {
+            commissionAmount = fixedAmount;
+        }
+        else if (rulePercentage > 0) {
+            commissionAmount = Math.round(((invoiceTotal * rulePercentage) / 100) * 100) / 100;
         }
         if (commissionAmount <= 0)
-            return;
+            return null;
         // Create EmployeeCommission record
-        await client.employeeCommission.create({
+        const createdComm = await client.employeeCommission.create({
             data: {
                 employeeId,
                 invoiceId,
-                commissionRuleId: rule.id,
+                commissionRuleId: rule ? rule.id : null,
                 amount: new client_1.Prisma.Decimal(commissionAmount),
                 status: client_1.CommissionStatus.PENDING,
             },
         });
+        return {
+            id: createdComm.id,
+            rulePercentage,
+            fixedAmount,
+        };
     }
     /**
      * Get commissions list with filtering, summary stats, and RBAC enforcement.
@@ -464,37 +506,409 @@ class CommissionsService {
      * Manager sets/updates service-wise commission rules.
      */
     async setCommissionRule(input) {
+        const category = (input.serviceCategory || 'General').trim();
+        const isReferral = input.type === client_1.CommissionType.REFERRAL || category.toLowerCase() === 'general' || category.toLowerCase() === 'referral';
+        const ruleType = isReferral ? client_1.CommissionType.REFERRAL : (input.type || client_1.CommissionType.SERVICE);
         const existing = await database_1.default.commissionRule.findFirst({
             where: {
-                type: client_1.CommissionType.SERVICE,
-                serviceCategory: input.serviceCategory.trim(),
+                serviceCategory: category,
             },
         });
+        const percentageNum = input.percentage != null ? Number(input.percentage) : 0;
+        const fixedAmountNum = input.fixedAmount != null && Number(input.fixedAmount) > 0 ? Number(input.fixedAmount) : null;
         if (existing) {
             return database_1.default.commissionRule.update({
                 where: { id: existing.id },
                 data: {
-                    percentage: new client_1.Prisma.Decimal(input.percentage),
-                    fixedAmount: input.fixedAmount ? new client_1.Prisma.Decimal(input.fixedAmount) : null,
+                    type: ruleType,
+                    percentage: new client_1.Prisma.Decimal(percentageNum),
+                    fixedAmount: fixedAmountNum != null ? new client_1.Prisma.Decimal(fixedAmountNum) : null,
                     isActive: true,
                 },
             });
         }
         return database_1.default.commissionRule.create({
             data: {
-                type: client_1.CommissionType.SERVICE,
-                serviceCategory: input.serviceCategory.trim(),
-                percentage: new client_1.Prisma.Decimal(input.percentage),
-                fixedAmount: input.fixedAmount ? new client_1.Prisma.Decimal(input.fixedAmount) : null,
+                type: ruleType,
+                serviceCategory: category,
+                percentage: new client_1.Prisma.Decimal(percentageNum),
+                fixedAmount: fixedAmountNum != null ? new client_1.Prisma.Decimal(fixedAmountNum) : null,
                 isActive: true,
             },
         });
     }
     async getCommissionRules() {
         return database_1.default.commissionRule.findMany({
-            where: { type: client_1.CommissionType.SERVICE, isActive: true },
-            orderBy: { serviceCategory: 'asc' },
+            where: { isActive: true },
+            orderBy: { updatedAt: 'desc' },
         });
+    }
+    /**
+     * Retrieves Authoritative Monthly Salary & Target Summary for an employee.
+     * Dynamically evaluates Mode A (Fixed Salary) vs Mode B (Base Pay + Commission).
+     * Implements minimum floor guarantee max(S_fixed, Base + Net Commission).
+     */
+    async getSalarySummary(technicianId, period) {
+        const staff = await database_1.default.user.findUnique({
+            where: { id: technicianId },
+            include: {
+                role: true,
+                staffProfile: true,
+            },
+        });
+        if (!staff) {
+            throw new errorHandler_1.AppError('Staff member not found', constants_1.HTTP_STATUS.NOT_FOUND);
+        }
+        // Determine calendar year and month in Africa/Douala
+        let year;
+        let month; // 1-12
+        if (period && /^\d{4}-\d{2}$/.test(period.trim())) {
+            const parts = period.trim().split('-');
+            year = parseInt(parts[0], 10);
+            month = parseInt(parts[1], 10);
+        }
+        else {
+            const doualaStr = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'Africa/Douala',
+                year: 'numeric',
+                month: '2-digit',
+            }).format(new Date()); // "YYYY-MM"
+            const parts = doualaStr.split('-');
+            year = parseInt(parts[0], 10);
+            month = parseInt(parts[1], 10);
+        }
+        const startOfMonth = new Date(Date.UTC(year, month - 1, 1, 0, 0, 0));
+        const endOfMonth = new Date(Date.UTC(year, month, 0, 23, 59, 59, 999));
+        const monthNames = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December',
+        ];
+        const periodLabel = `${monthNames[month - 1]} ${year}`;
+        const periodYearMonth = `${year}-${String(month).padStart(2, '0')}`;
+        // Contract parameters with built-in role/specialty fallback presets
+        const rawRole = (staff.role?.name || 'TECHNICIAN').toUpperCase();
+        let specialties = [];
+        if (staff.staffProfile?.specialties) {
+            if (Array.isArray(staff.staffProfile.specialties)) {
+                specialties = staff.staffProfile.specialties;
+            }
+            else if (typeof staff.staffProfile.specialties === 'string') {
+                try {
+                    specialties = JSON.parse(staff.staffProfile.specialties);
+                }
+                catch {
+                    specialties = [];
+                }
+            }
+        }
+        const specStr = specialties.join(' ').toLowerCase();
+        let defaultTarget = 500000;
+        let defaultFixed = 80000;
+        let defaultBase = 50000;
+        let defaultComm = 15;
+        let defaultScope = 'INDIVIDUAL';
+        if (rawRole === 'RECEPTION') {
+            defaultTarget = 3500000;
+            defaultFixed = 100000;
+            defaultBase = 150000;
+            defaultComm = 0;
+            defaultScope = 'SPA_TOTAL';
+        }
+        else if (specStr.includes('barber')) {
+            defaultTarget = 300000;
+            defaultFixed = 80000;
+            defaultBase = 50000;
+            defaultComm = 20;
+        }
+        else if (specStr.includes('nail')) {
+            defaultTarget = 500000;
+            defaultFixed = 80000;
+            defaultBase = 50000;
+            defaultComm = 15;
+        }
+        else if (specStr.includes('facial') || specStr.includes('esthetician') || specStr.includes('esthetic')) {
+            defaultTarget = 642000;
+            defaultFixed = 80000;
+            defaultBase = 50000;
+            defaultComm = 15;
+        }
+        const monthlyTarget = Number(staff.staffProfile?.monthlyTarget) > 0
+            ? Number(staff.staffProfile?.monthlyTarget)
+            : defaultTarget;
+        const basePay = Number(staff.staffProfile?.basePay) > 0
+            ? Number(staff.staffProfile?.basePay)
+            : defaultBase;
+        const commissionRate = Number(staff.staffProfile?.commissionRate) > 0
+            ? Number(staff.staffProfile?.commissionRate)
+            : defaultComm;
+        const fixedSalary = Number(staff.staffProfile?.fixedSalary) > 0
+            ? Number(staff.staffProfile?.fixedSalary)
+            : defaultFixed;
+        const targetScope = staff.staffProfile?.targetScope || defaultScope;
+        const specs = Array.isArray(staff.staffProfile?.specialties)
+            ? staff.staffProfile.specialties
+            : [];
+        const isMarketer = staff.role?.name === 'MARKETER' || specs.some((s) => String(s).toLowerCase() === 'marketer');
+        // 1. Compute Individual MTD Sales
+        let mtdSales = 0;
+        if (isMarketer) {
+            // Marketer: compute sales from all paid invoices of clients introduced by this marketer
+            const referredInvoices = await database_1.default.invoice.findMany({
+                where: {
+                    client: {
+                        introducedByEmployeeId: staff.id,
+                    },
+                    status: client_1.InvoiceStatus.PAID,
+                    createdAt: { gte: startOfMonth, lte: endOfMonth },
+                },
+                include: {
+                    items: {
+                        where: { itemType: client_1.InvoiceItemType.SERVICE },
+                    },
+                },
+            });
+            for (const inv of referredInvoices) {
+                for (const it of inv.items) {
+                    mtdSales += Number(it.price) * it.quantity;
+                }
+            }
+        }
+        else {
+            // Technician: compute sales performed by this technician
+            const mtdItems = await database_1.default.invoiceItem.findMany({
+                where: {
+                    technicianId: staff.id,
+                    itemType: client_1.InvoiceItemType.SERVICE,
+                    invoice: {
+                        status: client_1.InvoiceStatus.PAID,
+                        createdAt: { gte: startOfMonth, lte: endOfMonth },
+                    },
+                },
+            });
+            for (const it of mtdItems) {
+                mtdSales += Number(it.price) * it.quantity;
+            }
+        }
+        // 2. Compute Total Spa MTD Sales
+        const allSpaItems = await database_1.default.invoiceItem.findMany({
+            where: {
+                itemType: client_1.InvoiceItemType.SERVICE,
+                invoice: {
+                    status: client_1.InvoiceStatus.PAID,
+                    createdAt: { gte: startOfMonth, lte: endOfMonth },
+                },
+            },
+        });
+        let spaTotalSales = 0;
+        for (const it of allSpaItems) {
+            spaTotalSales += Number(it.price) * it.quantity;
+        }
+        // 3. Evaluate target qualifying revenue
+        const qualifyingRevenue = targetScope === 'SPA_TOTAL' ? spaTotalSales : mtdSales;
+        const isTargetMet = monthlyTarget > 0 && qualifyingRevenue >= monthlyTarget;
+        const targetProgressPercent = monthlyTarget > 0
+            ? Math.min(100, Math.round((qualifyingRevenue / monthlyTarget) * 1000) / 10)
+            : 0;
+        const salesRemainingToTarget = Math.max(0, monthlyTarget - qualifyingRevenue);
+        // 4. Referral deductions & recorded commissions
+        let referralDeductionsTotal = 0;
+        let rawGrossCommission = 0;
+        if (isMarketer) {
+            // Marketers earn referral commissions recorded in EmployeeCommission
+            const empCommissions = await database_1.default.employeeCommission.findMany({
+                where: {
+                    employeeId: staff.id,
+                    createdAt: { gte: startOfMonth, lte: endOfMonth },
+                },
+            });
+            for (const ec of empCommissions) {
+                rawGrossCommission += Number(ec.amount || 0);
+            }
+            // Priority Enforcement: If Marketer has a customized contract commissionRate (e.g. 10%),
+            // ensure the commission calculated on qualifying referred sales matches contract rate!
+            if (commissionRate > 0 && qualifyingRevenue > 0) {
+                const contractCalculatedCommission = Math.round(((qualifyingRevenue * commissionRate) / 100) * 100) / 100;
+                rawGrossCommission = Math.max(rawGrossCommission, contractCalculatedCommission);
+            }
+        }
+        else {
+            const techCommissions = await database_1.default.technicianCommission.findMany({
+                where: {
+                    technicianId: staff.id,
+                    createdAt: { gte: startOfMonth, lte: endOfMonth },
+                },
+            });
+            for (const tc of techCommissions) {
+                referralDeductionsTotal += Number(tc.referralDeduction || 0);
+                rawGrossCommission += Number(tc.baseCommission || 0);
+            }
+        }
+        const grossCommissionAccumulated = rawGrossCommission > 0
+            ? rawGrossCommission
+            : Math.round(((qualifyingRevenue * commissionRate) / 100) * 100) / 100;
+        const netCommissionAccumulated = Math.max(0, grossCommissionAccumulated - referralDeductionsTotal);
+        // 5. Dynamic Switching Mode & Payout
+        let activeMode = 'FIXED_SALARY';
+        let modeLabel = 'Fixed Flat Salary (Below Target)';
+        let currentProjectedPayout = fixedSalary;
+        if (targetScope === 'SPA_TOTAL') {
+            if (isTargetMet) {
+                activeMode = 'BASE_PLUS_COMMISSION';
+                modeLabel = 'Spa Target Met (Elevated Base Pay)';
+                currentProjectedPayout = Math.max(fixedSalary, basePay);
+            }
+            else {
+                activeMode = 'FIXED_SALARY';
+                modeLabel = 'Fixed Flat Salary (Below Spa Target)';
+                currentProjectedPayout = fixedSalary;
+            }
+        }
+        else {
+            if (isTargetMet) {
+                activeMode = 'BASE_PLUS_COMMISSION';
+                modeLabel = 'Target Met (Base Pay + Commission Tier)';
+                // Minimum floor protection guaranteed
+                currentProjectedPayout = Math.max(fixedSalary, basePay + netCommissionAccumulated);
+            }
+            else {
+                activeMode = 'FIXED_SALARY';
+                modeLabel = 'Fixed Flat Salary (Below Target)';
+                currentProjectedPayout = fixedSalary;
+            }
+        }
+        // Benchmark simulation at exact quota
+        const projectedPayoutAtExactTarget = targetScope === 'SPA_TOTAL'
+            ? Math.max(fixedSalary, basePay)
+            : Math.max(fixedSalary, basePay + Math.round((monthlyTarget * commissionRate) / 100));
+        const potentialGainOnReachingTarget = Math.max(0, projectedPayoutAtExactTarget - fixedSalary);
+        // 6. Check if finalized in MonthlyPayrollRecord
+        const payrollRecord = await database_1.default.monthlyPayrollRecord.findUnique({
+            where: {
+                employeeId_periodYearMonth: {
+                    employeeId: staff.id,
+                    periodYearMonth,
+                },
+            },
+        });
+        return {
+            technicianId: staff.id,
+            technicianName: staff.staffProfile?.name || staff.email.split('@')[0],
+            role: rawRole.toLowerCase(),
+            specialty: specialties[0] || 'Technician',
+            period: periodLabel,
+            periodYearMonth,
+            contract: {
+                monthlyTarget,
+                basePay,
+                commissionRate,
+                fixedSalary,
+                targetScope,
+            },
+            performance: {
+                mtdSales,
+                salesTotal: mtdSales,
+                spaTotalSales,
+                targetQuota: monthlyTarget,
+                targetProgressPercent,
+                percentageAchieved: targetProgressPercent,
+                isTargetMet,
+                salesRemainingToTarget,
+                remainingToTarget: salesRemainingToTarget,
+            },
+            calculation: {
+                activeMode,
+                mode: activeMode === 'BASE_PLUS_COMMISSION' ? 'MODE_B_TARGET_MET' : 'MODE_A_BELOW_TARGET',
+                modeLabel,
+                commissionUnlocked: activeMode === 'BASE_PLUS_COMMISSION',
+                fixedSalaryAmount: fixedSalary,
+                fixedSalaryFloor: fixedSalary,
+                basePayAmount: basePay,
+                basePay,
+                grossCommissionAccumulated,
+                grossCommission: grossCommissionAccumulated,
+                referralDeductionsTotal,
+                referralDeductions: referralDeductionsTotal,
+                totalPenalties: referralDeductionsTotal,
+                netCommissionAccumulated,
+                netCommission: netCommissionAccumulated,
+                unearnedCommissionLocked: activeMode === 'FIXED_SALARY' ? netCommissionAccumulated : 0,
+                currentProjectedPayout,
+                effectivePayout: currentProjectedPayout,
+                calculatedPayout: currentProjectedPayout,
+                floorProtectionApplied: currentProjectedPayout === fixedSalary && activeMode === 'BASE_PLUS_COMMISSION',
+                projectedPayoutAtExactTarget,
+                potentialGainOnReachingTarget,
+            },
+            isFinalized: Boolean(payrollRecord?.isFinalized),
+        };
+    }
+    /**
+     * Finalizes and freezes a month's payroll record for an employee.
+     * - Must be Manager role.
+     * - Immutability guard: if record is already finalized, returns 403 Forbidden.
+     * - Freezes authoritative snapshot into MonthlyPayrollRecord.
+     */
+    async finalizeMonthlyPayroll(employeeId, period, finalizedById) {
+        // 1. Check if record is already finalized (Immutability Guard)
+        const existing = await database_1.default.monthlyPayrollRecord.findUnique({
+            where: {
+                employeeId_periodYearMonth: {
+                    employeeId,
+                    periodYearMonth: period,
+                },
+            },
+        });
+        if (existing?.isFinalized) {
+            const err = new Error('Payroll record is finalized and locked against modification.');
+            err.statusCode = 403;
+            throw err;
+        }
+        // 2. Fetch authoritative salary summary for the period
+        const summary = await this.getSalarySummary(employeeId, period);
+        // 3. Upsert into MonthlyPayrollRecord
+        const record = await database_1.default.monthlyPayrollRecord.upsert({
+            where: {
+                employeeId_periodYearMonth: {
+                    employeeId,
+                    periodYearMonth: period,
+                },
+            },
+            create: {
+                employeeId,
+                periodYearMonth: period,
+                targetScope: summary.contract.targetScope,
+                targetQuota: new client_1.Prisma.Decimal(summary.contract.monthlyTarget),
+                actualRevenue: new client_1.Prisma.Decimal(summary.performance.mtdSales),
+                isTargetMet: summary.performance.isTargetMet,
+                salaryMode: summary.calculation.activeMode,
+                fixedSalaryAmount: new client_1.Prisma.Decimal(summary.contract.fixedSalary),
+                basePayAmount: new client_1.Prisma.Decimal(summary.contract.basePay),
+                grossCommission: new client_1.Prisma.Decimal(summary.calculation.grossCommissionAccumulated),
+                referralDeductions: new client_1.Prisma.Decimal(summary.calculation.referralDeductionsTotal),
+                netCommission: new client_1.Prisma.Decimal(summary.calculation.netCommissionAccumulated),
+                finalPayoutAmount: new client_1.Prisma.Decimal(summary.calculation.currentProjectedPayout),
+                isFinalized: true,
+                finalizedById,
+                finalizedAt: new Date(),
+            },
+            update: {
+                targetScope: summary.contract.targetScope,
+                targetQuota: new client_1.Prisma.Decimal(summary.contract.monthlyTarget),
+                actualRevenue: new client_1.Prisma.Decimal(summary.performance.mtdSales),
+                isTargetMet: summary.performance.isTargetMet,
+                salaryMode: summary.calculation.activeMode,
+                fixedSalaryAmount: new client_1.Prisma.Decimal(summary.contract.fixedSalary),
+                basePayAmount: new client_1.Prisma.Decimal(summary.contract.basePay),
+                grossCommission: new client_1.Prisma.Decimal(summary.calculation.grossCommissionAccumulated),
+                referralDeductions: new client_1.Prisma.Decimal(summary.calculation.referralDeductionsTotal),
+                netCommission: new client_1.Prisma.Decimal(summary.calculation.netCommissionAccumulated),
+                finalPayoutAmount: new client_1.Prisma.Decimal(summary.calculation.currentProjectedPayout),
+                isFinalized: true,
+                finalizedById,
+                finalizedAt: new Date(),
+            },
+        });
+        return record;
     }
 }
 exports.CommissionsService = CommissionsService;

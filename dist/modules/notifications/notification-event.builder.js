@@ -23,6 +23,10 @@ class NotificationEventBuilder {
             const reg = new RegExp(`\\{${key}\\}`, 'g');
             message = message.replace(reg, String(value));
         }
+        if (placeholders.clientName !== undefined) {
+            message = message.replace(/\{\{1\}\}/g, String(placeholders.clientName));
+            message = message.replace(/\{1\}/g, String(placeholders.clientName));
+        }
         return message;
     }
     /**
@@ -305,12 +309,14 @@ class NotificationEventBuilder {
     }
     /**
      * 6. Rebooking Reminder Event
+     * Strictly enforces minimum 30-day inactivity threshold and monthly idempotency key
      */
     async buildRebookingEvent(clientId, businessDate = new Date().toISOString().split('T')[0]) {
         const client = await database_1.default.client.findUnique({
             where: { id: clientId },
             include: {
                 appointments: {
+                    where: { status: 'COMPLETED' },
                     orderBy: { appointmentDate: 'desc' },
                     take: 1,
                 },
@@ -320,9 +326,17 @@ class NotificationEventBuilder {
             throw new errorHandler_1.AppError('Client not found', constants_1.HTTP_STATUS.NOT_FOUND);
         const now = new Date();
         const lastVisit = client.lastVisitAt || (client.appointments[0] ? client.appointments[0].appointmentDate : null);
-        const daysInactive = lastVisit ? Math.floor((now.getTime() - new Date(lastVisit).getTime()) / (1000 * 60 * 60 * 24)) : 30;
-        const phone = client.phone || client.whatsapp;
-        const idempotencyKey = `rebooking:${client.id}:${businessDate}`;
+        if (!lastVisit) {
+            throw new errorHandler_1.AppError(`Client ${client.name} has no recorded past visits. Rebooking reminder requires at least 1 completed visit.`, constants_1.HTTP_STATUS.BAD_REQUEST);
+        }
+        const daysInactive = Math.floor((now.getTime() - new Date(lastVisit).getTime()) / (1000 * 60 * 60 * 24));
+        if (daysInactive < 30) {
+            throw new errorHandler_1.AppError(`Client ${client.name} is not eligible for rebooking: last visit was only ${daysInactive} days ago (minimum 30 days required).`, constants_1.HTTP_STATUS.BAD_REQUEST);
+        }
+        const rawPhone = client.phone || client.whatsapp || '';
+        const cleanPhone = rawPhone.replace(/\D/g, '');
+        const monthBucket = businessDate.substring(0, 7); // e.g. '2026-10'
+        const idempotencyKey = `rebooking:${cleanPhone || client.id}:${monthBucket}`;
         return {
             eventType: 'REBOOKING',
             idempotencyKey,
@@ -330,7 +344,7 @@ class NotificationEventBuilder {
             recipient: {
                 clientId: client.id,
                 name: client.name,
-                phone: phone || undefined,
+                phone: rawPhone || undefined,
             },
             placeholders: {
                 clientName: client.name,
@@ -370,17 +384,45 @@ class NotificationEventBuilder {
                 status: client_1.AppointmentStatus.COMPLETED,
             },
         });
-        const managerProfile = await database_1.default.staffProfile.findUnique({
-            where: { userId: authUserId },
-        });
-        const recipientPhone = recipientPhoneOverride || managerProfile?.phone || '+237670000001';
+        let recipientPhone = recipientPhoneOverride;
+        if (!recipientPhone) {
+            try {
+                const { whatsappService } = require('../whatsapp/whatsapp.service');
+                const phone = whatsappService.getBossPhoneNumber();
+                if (phone)
+                    recipientPhone = phone;
+            }
+            catch (e) { }
+        }
+        let managerName = 'Manager';
+        if (authUserId && authUserId !== 'system') {
+            const managerProfile = await database_1.default.staffProfile.findUnique({
+                where: { userId: authUserId },
+            });
+            if (managerProfile?.name)
+                managerName = managerProfile.name;
+            if (!recipientPhone && managerProfile?.phone) {
+                recipientPhone = managerProfile.phone;
+            }
+        }
+        if (!recipientPhone) {
+            try {
+                const managerUser = await database_1.default.user.findFirst({
+                    where: { role: { name: 'MANAGER' }, isActive: true },
+                    include: { staffProfile: true },
+                });
+                recipientPhone = managerUser?.staffProfile?.phone || managerUser?.phone || undefined;
+            }
+            catch (e) { }
+        }
+        const finalPhone = recipientPhone || '+237676761349';
         const idempotencyKey = `daily-close:${businessDate}`;
         return {
             eventType: 'DAILY_CLOSE_BOSS',
             idempotencyKey,
             recipient: {
-                name: managerProfile?.name || 'Manager',
-                phone: recipientPhone,
+                name: managerName,
+                phone: finalPhone,
             },
             placeholders: {
                 todayDate: businessDate,

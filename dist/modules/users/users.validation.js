@@ -8,7 +8,7 @@ exports.createUserSchema = zod_1.z.object({
     phone: zod_1.z.string().optional().nullable(),
     username: zod_1.z.string().optional(),
     role: zod_1.z.string().min(1, 'Role is required'),
-    password: zod_1.z.string().optional(),
+    password: zod_1.z.string().min(6, 'Password is required (minimum 6 characters)'),
     specialties: zod_1.z.array(zod_1.z.string()).optional(),
 });
 exports.updateUserSchema = zod_1.z.object({

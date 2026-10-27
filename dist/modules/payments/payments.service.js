@@ -66,6 +66,13 @@ class PaymentsService {
                 await commissions_service_1.commissionsService.generateCommissionsForInvoice(invoice.id, tx);
                 // Phase 19: Award loyalty points upon invoice PAID
                 await loyalty_service_1.loyaltyService.awardPointsForInvoice(invoice.id, tx);
+                // Update Client lastVisitAt
+                if (invoice.clientId) {
+                    await tx.client.update({
+                        where: { id: invoice.clientId },
+                        data: { lastVisitAt: new Date() },
+                    });
+                }
             }
             // Log payment activity in ClientHistory
             if (invoice.clientId) {

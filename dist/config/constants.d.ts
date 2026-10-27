@@ -22,6 +22,7 @@ export declare const ROLES: {
     readonly RECEPTION: "RECEPTION";
     readonly TECHNICIAN: "TECHNICIAN";
     readonly CLEANER: "CLEANER";
+    readonly MARKETER: "MARKETER";
 };
 export type Role = (typeof ROLES)[keyof typeof ROLES];
 //# sourceMappingURL=constants.d.ts.map
