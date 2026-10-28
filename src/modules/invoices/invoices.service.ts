@@ -157,54 +157,69 @@ export class InvoicesService {
 
           // Clean phone and name
           const rawPhone = (data.clientPhone || (data as any).phone || '').trim();
-          const cleanPhone = (rawPhone && rawPhone !== '+237' && rawPhone !== '+237 ') ? rawPhone : null;
+          const digitsOnly = rawPhone.replace(/[^\d+]/g, '');
+          const cleanPhone = (digitsOnly && digitsOnly !== '+237' && digitsOnly !== '+' && digitsOnly.length >= 7) ? digitsOnly : null;
           const rawName = (data.clientName || '').trim();
           const cleanName = (rawName && rawName.toLowerCase() !== 'walk in') ? rawName : null;
 
-          if (!targetClientId && (cleanPhone || cleanName)) {
-            let existingClient: any = null;
+          if (!targetClientId) {
             if (cleanPhone) {
-              existingClient = await tx.client.findFirst({
+              // 1. Phone number is provided: search ONLY by exact phone / whatsapp number
+              const existingClient = await tx.client.findFirst({
                 where: {
                   OR: [
                     { phone: cleanPhone },
+                    { phone: rawPhone },
                     { whatsapp: cleanPhone },
+                    { whatsapp: rawPhone },
                   ],
                 },
               });
-            }
 
-            if (!existingClient && cleanName) {
-              existingClient = await tx.client.findFirst({
-                where: {
-                  OR: [
-                    { name: { equals: cleanName } },
-                    { name: { contains: cleanName } },
-                  ],
-                },
-              });
-            }
-
-            if (existingClient) {
-              targetClientId = existingClient.id;
-              if (cleanPhone && (!existingClient.phone || existingClient.phone.startsWith('WALK-'))) {
-                await tx.client.update({
-                  where: { id: existingClient.id },
-                  data: { phone: cleanPhone, whatsapp: cleanPhone },
+              if (existingClient) {
+                targetClientId = existingClient.id;
+                // If client had a generic walk-in name and a real name is now provided, update it
+                if (cleanName && (existingClient.name.toLowerCase().startsWith('walk-in') || existingClient.name.toLowerCase() === 'walk in')) {
+                  await tx.client.update({
+                    where: { id: existingClient.id },
+                    data: { name: cleanName },
+                  });
+                }
+              } else {
+                // Phone not in system: create a NEW client strictly with this phone number
+                const displayName = cleanName || `Walk-in (${cleanPhone.slice(-4)})`;
+                const newClient = await tx.client.create({
+                  data: {
+                    name: displayName,
+                    phone: cleanPhone,
+                    whatsapp: cleanPhone,
+                    source: 'DIRECT',
+                  },
                 });
+                targetClientId = newClient.id;
               }
-            } else {
-              const dummyPhone = cleanPhone || `WALK-${Date.now().toString().slice(-6)}`;
-              const displayName = cleanName || (cleanPhone ? `Walk-in (${cleanPhone.slice(-4)})` : 'Walk in');
-              const newClient = await tx.client.create({
-                data: {
-                  name: displayName,
-                  phone: dummyPhone,
-                  whatsapp: cleanPhone || null,
-                  source: 'DIRECT',
+            } else if (cleanName) {
+              // 2. NO phone number provided: only check exact name for anonymous walk-ins (never fuzzy contains)
+              const existingWalkIn = await tx.client.findFirst({
+                where: {
+                  name: { equals: cleanName },
+                  phone: { startsWith: 'WALK-' },
                 },
               });
-              targetClientId = newClient.id;
+
+              if (existingWalkIn) {
+                targetClientId = existingWalkIn.id;
+              } else {
+                const dummyPhone = `WALK-${Date.now().toString().slice(-6)}`;
+                const newClient = await tx.client.create({
+                  data: {
+                    name: cleanName,
+                    phone: dummyPhone,
+                    source: 'DIRECT',
+                  },
+                });
+                targetClientId = newClient.id;
+              }
             }
           }
 
@@ -591,6 +606,17 @@ export class InvoicesService {
           },
         });
         logger.info(`[InvoicesService] Restored missing invoice INV-1793023070680 for Madam Kelly (${createdKelly.id})`);
+      }
+
+      // Ensure INV-20261028-0013 is correctly linked to Test (+917389492199)
+      const testClient = await prisma.client.findFirst({
+        where: { OR: [{ phone: '+917389492199' }, { whatsapp: '+917389492199' }] },
+      });
+      if (testClient) {
+        await prisma.invoice.updateMany({
+          where: { invoiceNumber: 'INV-20261028-0013' },
+          data: { clientId: testClient.id },
+        });
       }
     } catch (err: any) {
       logger.warn('[InvoicesService] Note during walk-in invoice sync:', err?.message || err);
