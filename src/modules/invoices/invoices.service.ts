@@ -575,17 +575,19 @@ export class InvoicesService {
                 },
               ],
             },
-            payments: {
-              create: [
-                {
-                  amount: 22000,
-                  paymentMethod: PaymentMethod.CASH,
-                  paidAt: new Date('2026-10-26T16:35:00.000Z'),
-                  receivedById: staff?.id || null,
-                  notes: 'Recorded transaction for Madam Kelly (22,000 CFA)',
-                },
-              ],
-            },
+            payments: staff?.id
+              ? {
+                  create: [
+                    {
+                      amount: 22000,
+                      paymentMethod: PaymentMethod.CASH,
+                      paidAt: new Date('2026-10-26T16:35:00.000Z'),
+                      receivedById: staff.id,
+                      notes: 'Recorded transaction for Madam Kelly (22,000 CFA)',
+                    },
+                  ],
+                }
+              : undefined,
           },
         });
         logger.info(`[InvoicesService] Restored missing invoice INV-1793023070680 for Madam Kelly (${createdKelly.id})`);

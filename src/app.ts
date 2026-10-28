@@ -110,8 +110,8 @@ if (env.NODE_ENV === 'development') {
 app.get('/', (_req, res) => {
   res.status(200).json({
     message: 'OMEGA SPA POS Backend Running',
-    version: '1.2.3',
-    build: '2026-10-28-invoice-sync-fix',
+    version: '1.2.4',
+    build: '2026-10-28-walkin-phone-fix',
     retentionReady: true,
   });
 });
