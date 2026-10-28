@@ -155,27 +155,52 @@ export class InvoicesService {
 
           let targetClientId = appointment ? appointment.clientId : (data.clientId || null);
 
-          // If no clientId but clientName is provided, find or create client record
-          if (!targetClientId && data.clientName && data.clientName.trim() && data.clientName.trim().toLowerCase() !== 'walk in') {
-            const cleanName = data.clientName.trim();
-            const existingClient = await tx.client.findFirst({
-              where: {
-                OR: [
-                  { name: { equals: cleanName } },
-                  { name: { contains: cleanName } },
-                ],
-              },
-            });
+          // Clean phone and name
+          const rawPhone = (data.clientPhone || (data as any).phone || '').trim();
+          const cleanPhone = (rawPhone && rawPhone !== '+237' && rawPhone !== '+237 ') ? rawPhone : null;
+          const rawName = (data.clientName || '').trim();
+          const cleanName = (rawName && rawName.toLowerCase() !== 'walk in') ? rawName : null;
+
+          if (!targetClientId && (cleanPhone || cleanName)) {
+            let existingClient: any = null;
+            if (cleanPhone) {
+              existingClient = await tx.client.findFirst({
+                where: {
+                  OR: [
+                    { phone: cleanPhone },
+                    { whatsapp: cleanPhone },
+                  ],
+                },
+              });
+            }
+
+            if (!existingClient && cleanName) {
+              existingClient = await tx.client.findFirst({
+                where: {
+                  OR: [
+                    { name: { equals: cleanName } },
+                    { name: { contains: cleanName } },
+                  ],
+                },
+              });
+            }
 
             if (existingClient) {
               targetClientId = existingClient.id;
+              if (cleanPhone && (!existingClient.phone || existingClient.phone.startsWith('WALK-'))) {
+                await tx.client.update({
+                  where: { id: existingClient.id },
+                  data: { phone: cleanPhone, whatsapp: cleanPhone },
+                });
+              }
             } else {
-              // Create lightweight client in DB
-              const dummyPhone = `WALK-${Date.now().toString().slice(-6)}`;
+              const dummyPhone = cleanPhone || `WALK-${Date.now().toString().slice(-6)}`;
+              const displayName = cleanName || (cleanPhone ? `Walk-in (${cleanPhone.slice(-4)})` : 'Walk in');
               const newClient = await tx.client.create({
                 data: {
-                  name: cleanName,
+                  name: displayName,
                   phone: dummyPhone,
+                  whatsapp: cleanPhone || null,
                   source: 'DIRECT',
                 },
               });
@@ -618,7 +643,7 @@ export class InvoicesService {
         orderBy: { createdAt: 'desc' },
         include: {
           client: {
-            select: { id: true, name: true, phone: true, quartier: true },
+            select: { id: true, name: true, phone: true, whatsapp: true, quartier: true },
           },
           appointment: {
             select: {
@@ -658,6 +683,8 @@ export class InvoicesService {
       const remainingAmount = Math.max(0, Number(inv.total) - paidAmount);
       return {
         ...inv,
+        clientPhone: inv.client?.phone || inv.client?.whatsapp || null,
+        phone: inv.client?.phone || inv.client?.whatsapp || null,
         notes: inv.appointment?.notes || null,
         paidAmount,
         remainingAmount,
@@ -746,6 +773,8 @@ export class InvoicesService {
 
     return {
       ...invoice,
+      clientPhone: invoice.client?.phone || invoice.client?.whatsapp || null,
+      phone: invoice.client?.phone || invoice.client?.whatsapp || null,
       notes: invoice.appointment?.notes || null,
       paidAmount,
       remainingAmount,

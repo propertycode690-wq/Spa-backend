@@ -24,6 +24,8 @@ export const createInvoiceSchema = z.preprocess(
       appointmentId: z.string().uuid('Invalid appointmentId UUID').optional().nullable(),
       clientId: z.string().uuid('Invalid clientId UUID').optional().nullable(),
       clientName: z.string().optional().nullable(),
+      clientPhone: z.string().optional().nullable(),
+      phone: z.string().optional().nullable(),
       date: z.union([z.string(), z.date()]).optional().nullable(),
       invoiceNumber: z.string().optional().nullable(),
       discount: z.number().nonnegative('Discount cannot be negative').optional().default(0),
