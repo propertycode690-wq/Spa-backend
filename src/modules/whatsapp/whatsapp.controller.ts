@@ -100,6 +100,15 @@ export class WhatsAppController {
       const authUser = (req as any).user as AuthContextUser;
       const result = await whatsappService.triggerDailyCloseBoss(validated, authUser);
 
+      if (result.log?.status === 'FAILED') {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: result.log.failureReason || 'Failed to dispatch WhatsApp daily close summary',
+          data: result,
+        });
+        return;
+      }
+
       res.status(HTTP_STATUS.OK).json({
         success: true,
         message: result.alreadySent

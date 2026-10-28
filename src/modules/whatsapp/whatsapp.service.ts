@@ -97,7 +97,7 @@ export class WhatsAppService {
           ],
         },
       },
-    }).catch(() => {});
+    }).catch(() => { });
 
     for (const [type, data] of Object.entries(this.defaultTemplates)) {
       if (!data) continue;
@@ -317,14 +317,14 @@ export class WhatsAppService {
           components:
             templateVariables && templateVariables.length > 0
               ? [
-                  {
-                    type: 'body',
-                    parameters: templateVariables.map((v) => ({
-                      type: 'text',
-                      text: String(v ?? ''),
-                    })),
-                  },
-                ]
+                {
+                  type: 'body',
+                  parameters: templateVariables.map((v) => ({
+                    type: 'text',
+                    text: String(v ?? ''),
+                  })),
+                },
+              ]
               : undefined,
         },
       };
@@ -887,16 +887,37 @@ export class WhatsAppService {
   async triggerDailyCloseBoss(input: DailyCloseTriggerInput, authUser: AuthContextUser) {
     const now = new Date();
     const businessDate = input.businessDate || input.date || now.toISOString().split('T')[0];
+    if (input.recipientPhone && input.recipientPhone.trim()) {
+      await this.setBossPhoneNumber(input.recipientPhone.trim()).catch(() => {});
+    }
     const targetRecipientPhone = input.recipientPhone || this.getBossPhoneNumber();
-    const event = await notificationEventBuilder.buildDailyCloseEvent(businessDate, authUser.id, targetRecipientPhone);
 
+    // Ensure DAILY_CLOSE_BOSS automation is active in database
+    await prisma.whatsAppAutomation.upsert({
+      where: { type: WhatsAppAutomationType.DAILY_CLOSE_BOSS },
+      create: {
+        type: WhatsAppAutomationType.DAILY_CLOSE_BOSS,
+        isActive: true,
+        template: 'OMEGA SPA Daily Close Summary ({todayDate}): Total Revenue: {totalRevenue} FCFA | Clients Served: {clientsServed} | Cash: {cashAmount} FCFA | MoMo: {momoAmount} FCFA | Orange: {orangeAmount} FCFA.',
+        timing: '19:30',
+      },
+      update: {
+        isActive: true,
+      },
+    }).catch(() => {});
+
+    const event = await notificationEventBuilder.buildDailyCloseEvent(businessDate, authUser.id, targetRecipientPhone);
     const setting = await this.getAutomationByType(WhatsAppAutomationType.DAILY_CLOSE_BOSS);
     const message = this.compileTemplate(setting.template, event.placeholders);
 
+    // Timestamped idempotency key ensures manual clicks from Manager dashboard always dispatch
+    const cleanDigits = (targetRecipientPhone || 'boss').replace(/[^\d]/g, '');
+    const idempotencyKey = `daily-close:${businessDate}:${cleanDigits}:${Date.now()}`;
+
     return this.dispatchMessage({
-      recipientPhone: event.recipient.phone || targetRecipientPhone,
+      recipientPhone: targetRecipientPhone || event.recipient.phone,
       message,
-      idempotencyKey: event.idempotencyKey,
+      idempotencyKey,
       automationType: WhatsAppAutomationType.DAILY_CLOSE_BOSS,
       templateName: 'daily_close_summary',
       templateLanguage: 'en',

@@ -171,6 +171,47 @@ export class WhatsAppProviderAdapter implements INotificationProvider, IWhatsApp
           recipient: normalizedPhone,
         });
 
+        // Resilience Fallback: If template dispatch failed (e.g. template not found in Meta, parameter mismatch), attempt plain text
+        if (templateData?.name) {
+          logger.warn(`[WhatsApp] Template "${templateData.name}" send failed (${errorCode}). Attempting plain text fallback to ${normalizedPhone}...`);
+          try {
+            const textPayload = {
+              messaging_product: 'whatsapp',
+              recipient_type: 'individual',
+              to: normalizedPhone,
+              type: 'text',
+              text: {
+                preview_url: false,
+                body: payload.content,
+              },
+            };
+            const textResponse = await fetch(this.apiBaseUrl, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${this.accessToken}`,
+              },
+              body: JSON.stringify(textPayload),
+            });
+            const textData: any = await textResponse.json();
+            if (textResponse.ok) {
+              const providerMessageId = textData?.messages?.[0]?.id || null;
+              logger.info('[WhatsApp] Plain text fallback succeeded', { providerMessageId, recipient: normalizedPhone });
+              return {
+                success: true,
+                status: 'SENT',
+                providerMessageId,
+                sentAt: new Date(),
+              };
+            } else {
+              const textErrMsg = textData?.error?.message || `Plain text HTTP ${textResponse.status}`;
+              logger.error('[WhatsApp] Plain text fallback also failed', { error: textErrMsg });
+            }
+          } catch (textErr: any) {
+            logger.error('[WhatsApp] Exception during plain text fallback', { error: textErr?.message });
+          }
+        }
+
         return {
           success: false,
           status: 'FAILED',
@@ -352,14 +393,14 @@ export class WhatsAppProviderAdapter implements INotificationProvider, IWhatsApp
               },
               ...(params.template.variables && params.template.variables.length > 0
                 ? [
-                    {
-                      type: 'body',
-                      parameters: params.template.variables.map((v) => ({
-                        type: 'text',
-                        text: String(v ?? ''),
-                      })),
-                    },
-                  ]
+                  {
+                    type: 'body',
+                    parameters: params.template.variables.map((v) => ({
+                      type: 'text',
+                      text: String(v ?? ''),
+                    })),
+                  },
+                ]
                 : []),
             ],
           },
