@@ -91,16 +91,18 @@ export class InvoicesService {
 
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
       try {
-        const dateObj = new Date();
+        const dateObj = data.date ? new Date(data.date) : new Date();
         const dateStr = dateObj.toISOString().slice(0, 10).replace(/-/g, '');
         const prefix = `INV-${dateStr}-`;
 
-        // Count only invoices with today's date prefix for a tighter sequence
-        const todayCount = await prisma.invoice.count({
-          where: { invoiceNumber: { startsWith: prefix } },
-        });
-
-        const invoiceNumber = `${prefix}${String(todayCount + 1 + attempt).padStart(4, '0')}`;
+        // If client provided an invoiceNumber and it's attempt 0, use it or generate sequential prefix
+        let invoiceNumber = data.invoiceNumber;
+        if (!invoiceNumber || attempt > 0) {
+          const todayCount = await prisma.invoice.count({
+            where: { invoiceNumber: { startsWith: prefix } },
+          });
+          invoiceNumber = `${prefix}${String(todayCount + 1 + attempt).padStart(4, '0')}`;
+        }
 
         const invoice = await prisma.$transaction(async (tx) => {
           // Process retail products if requested
@@ -151,7 +153,35 @@ export class InvoicesService {
           const discount = data.discount || 0;
           const total = Math.max(0, combinedSubtotal - discount);
 
-          const targetClientId = appointment ? appointment.clientId : (data.clientId || null);
+          let targetClientId = appointment ? appointment.clientId : (data.clientId || null);
+
+          // If no clientId but clientName is provided, find or create client record
+          if (!targetClientId && data.clientName && data.clientName.trim() && data.clientName.trim().toLowerCase() !== 'walk in') {
+            const cleanName = data.clientName.trim();
+            const existingClient = await tx.client.findFirst({
+              where: {
+                OR: [
+                  { name: { equals: cleanName } },
+                  { name: { contains: cleanName } },
+                ],
+              },
+            });
+
+            if (existingClient) {
+              targetClientId = existingClient.id;
+            } else {
+              // Create lightweight client in DB
+              const dummyPhone = `WALK-${Date.now().toString().slice(-6)}`;
+              const newClient = await tx.client.create({
+                data: {
+                  name: cleanName,
+                  phone: dummyPhone,
+                  source: 'DIRECT',
+                },
+              });
+              targetClientId = newClient.id;
+            }
+          }
 
           const created = await tx.invoice.create({
             data: {
@@ -200,14 +230,33 @@ export class InvoicesService {
               });
             }
           } else if (data.services && data.services.length > 0) {
-            // Snapshot direct walk-in service items
+            // Snapshot direct walk-in service items with defensive FK verification
             for (const s of data.services) {
+              let validServiceId: string | null = null;
+              if (s.serviceId) {
+                const svcExists = await tx.service.findUnique({
+                  where: { id: s.serviceId },
+                  select: { id: true },
+                });
+                if (svcExists) validServiceId = svcExists.id;
+              }
+
+              let validTechId: string | null = null;
+              const candTechId = s.technicianId || (String(authUser?.role).toUpperCase() === 'TECHNICIAN' ? authUser.id : null);
+              if (candTechId) {
+                const userExists = await tx.user.findUnique({
+                  where: { id: candTechId },
+                  select: { id: true },
+                });
+                if (userExists) validTechId = userExists.id;
+              }
+
               await tx.invoiceItem.create({
                 data: {
                   invoiceId: created.id,
                   appointmentServiceId: null,
-                  serviceId: s.serviceId || null,
-                  technicianId: s.technicianId || (String(authUser?.role).toUpperCase() === 'TECHNICIAN' ? authUser.id : null),
+                  serviceId: validServiceId,
+                  technicianId: validTechId,
                   itemType: InvoiceItemType.SERVICE,
                   name: s.name || s.service || 'Spa Service',
                   price: Number(s.price || 0),
@@ -435,6 +484,86 @@ export class InvoicesService {
           },
         });
         logger.info(`[InvoicesService] Restored missing invoice INV-1792782025864 for Madame Julie (${created.id})`);
+      }
+
+      // Restore missing Oct 26 Walk-In Invoice INV-1793023070680 for Madam Kelly (22,000 CFA)
+      const existingKelly = await prisma.invoice.findFirst({
+        where: {
+          OR: [
+            { invoiceNumber: 'INV-1793023070680' },
+            { invoiceNumber: { contains: '1793023070680' } },
+          ],
+        },
+      });
+
+      if (!existingKelly) {
+        let kellyClient = await prisma.client.findFirst({
+          where: {
+            OR: [
+              { name: { contains: 'Kelly' } },
+              { name: { contains: 'KELLY' } },
+            ],
+          },
+        });
+
+        if (!kellyClient) {
+          kellyClient = await prisma.client.create({
+            data: {
+              name: 'MADAM KELLY',
+              phone: '650 00 22 26',
+              source: 'DIRECT',
+            },
+          });
+        }
+
+        const staff = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { role: { name: 'RECEPTION' } },
+              { role: { name: 'MANAGER' } },
+            ],
+          },
+        });
+
+        const createdKelly = await prisma.invoice.create({
+          data: {
+            id: 'inv-1793023070680',
+            invoiceNumber: 'INV-1793023070680',
+            clientId: kellyClient.id,
+            date: new Date('2026-10-26T00:00:00.000Z'),
+            status: InvoiceStatus.PAID,
+            subtotal: 22000,
+            discount: 0,
+            total: 22000,
+            pointsEarned: 22,
+            pointsRedeemed: 0,
+            createdAt: new Date('2026-10-26T16:30:00.000Z'),
+            updatedAt: new Date('2026-10-26T16:35:00.000Z'),
+            items: {
+              create: [
+                {
+                  itemType: InvoiceItemType.SERVICE,
+                  name: 'Spa & Beauty Service',
+                  price: 22000,
+                  quantity: 1,
+                  technicianId: staff?.id || null,
+                },
+              ],
+            },
+            payments: {
+              create: [
+                {
+                  amount: 22000,
+                  paymentMethod: PaymentMethod.CASH,
+                  paidAt: new Date('2026-10-26T16:35:00.000Z'),
+                  receivedById: staff?.id || null,
+                  notes: 'Recorded transaction for Madam Kelly (22,000 CFA)',
+                },
+              ],
+            },
+          },
+        });
+        logger.info(`[InvoicesService] Restored missing invoice INV-1793023070680 for Madam Kelly (${createdKelly.id})`);
       }
     } catch (err: any) {
       logger.warn('[InvoicesService] Note during walk-in invoice sync:', err?.message || err);

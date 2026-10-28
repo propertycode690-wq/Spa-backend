@@ -4,6 +4,8 @@ export interface CreateInvoiceInput {
   appointmentId?: string;
   clientId?: string;
   clientName?: string;
+  date?: string | Date;
+  invoiceNumber?: string;
   discount?: number;
   status?: InvoiceStatus;
   paymentMethod?: PaymentMethod;
