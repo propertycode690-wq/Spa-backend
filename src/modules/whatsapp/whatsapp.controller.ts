@@ -225,7 +225,7 @@ export class WhatsAppController {
   async sendCustom(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
       const validated = sendCustomMessageSchema.parse(req.body);
-      const result = await whatsappService.sendCustomMessage(validated);
+      const result = await whatsappService.sendCustomMessage(validated as any);
 
       res.status(HTTP_STATUS.OK).json({
         success: true,
