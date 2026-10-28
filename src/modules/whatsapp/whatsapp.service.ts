@@ -967,7 +967,7 @@ export class WhatsAppService {
 
     // Build service names
     const serviceNames = appointment.appointmentServices
-      .map((as) => as.service?.name)
+      .map((as: any) => as.service?.name)
       .filter(Boolean)
       .join(', ') || appointment.serviceSummary || 'Spa Treatment';
 
@@ -1033,7 +1033,7 @@ export class WhatsAppService {
 
     const serviceNames =
       appointment.appointmentServices
-        .map((as) => as.service?.name)
+        .map((as: any) => as.service?.name)
         .filter(Boolean)
         .join(', ') || appointment.serviceSummary || 'Spa Service';
 

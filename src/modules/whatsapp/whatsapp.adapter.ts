@@ -348,7 +348,7 @@ export class WhatsAppProviderAdapter implements INotificationProvider, IWhatsApp
     try {
       // 1. Upload media buffer to Meta Media API
       const formData = new FormData();
-      const blob = new Blob([params.buffer], { type: 'application/pdf' });
+      const blob = new Blob([params.buffer as any], { type: 'application/pdf' });
       formData.append('file', blob, params.filename);
       formData.append('type', 'application/pdf');
       formData.append('messaging_product', 'whatsapp');
