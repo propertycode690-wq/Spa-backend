@@ -162,71 +162,32 @@ export class InvoicesService {
           const rawName = (data.clientName || '').trim();
           const cleanName = (rawName && rawName.toLowerCase() !== 'walk in') ? rawName : null;
 
-          if (!targetClientId) {
-            if (cleanPhone) {
-              // 1. Phone number is provided: search ONLY by exact phone / whatsapp number
-              const existingClient = await tx.client.findFirst({
-                where: {
-                  OR: [
-                    { phone: cleanPhone },
-                    { phone: rawPhone },
-                    { whatsapp: cleanPhone },
-                    { whatsapp: rawPhone },
-                  ],
-                },
-              });
+          // If no clientId was explicitly provided, check if phone matches an existing registered client
+          if (!targetClientId && cleanPhone) {
+            const existingClient = await tx.client.findFirst({
+              where: {
+                OR: [
+                  { phone: cleanPhone },
+                  { phone: rawPhone },
+                  { whatsapp: cleanPhone },
+                  { whatsapp: rawPhone },
+                ],
+              },
+            });
 
-              if (existingClient) {
-                targetClientId = existingClient.id;
-                // If client had a generic walk-in name and a real name is now provided, update it
-                if (cleanName && (existingClient.name.toLowerCase().startsWith('walk-in') || existingClient.name.toLowerCase() === 'walk in')) {
-                  await tx.client.update({
-                    where: { id: existingClient.id },
-                    data: { name: cleanName },
-                  });
-                }
-              } else {
-                // Phone not in system: create a NEW client strictly with this phone number
-                const displayName = cleanName || `Walk-in (${cleanPhone.slice(-4)})`;
-                const newClient = await tx.client.create({
-                  data: {
-                    name: displayName,
-                    phone: cleanPhone,
-                    whatsapp: cleanPhone,
-                    source: 'DIRECT',
-                  },
-                });
-                targetClientId = newClient.id;
-              }
-            } else if (cleanName) {
-              // 2. NO phone number provided: only check exact name for anonymous walk-ins (never fuzzy contains)
-              const existingWalkIn = await tx.client.findFirst({
-                where: {
-                  name: { equals: cleanName },
-                  phone: { startsWith: 'WALK-' },
-                },
-              });
-
-              if (existingWalkIn) {
-                targetClientId = existingWalkIn.id;
-              } else {
-                const dummyPhone = `WALK-${Date.now().toString().slice(-6)}`;
-                const newClient = await tx.client.create({
-                  data: {
-                    name: cleanName,
-                    phone: dummyPhone,
-                    source: 'DIRECT',
-                  },
-                });
-                targetClientId = newClient.id;
-              }
+            if (existingClient) {
+              targetClientId = existingClient.id;
             }
+            // IMPORTANT: If NOT found, DO NOT create a Client profile!
+            // Walk-in customers must never be added to the /clients directory!
           }
 
           const created = await tx.invoice.create({
             data: {
               appointmentId: appointment ? appointment.id : null,
               clientId: targetClientId,
+              clientName: cleanName || (targetClientId ? null : 'Walk in'),
+              clientPhone: cleanPhone || null,
               invoiceNumber,
               date: dateObj,
               status: invoiceStatus,
@@ -608,15 +569,37 @@ export class InvoicesService {
         logger.info(`[InvoicesService] Restored missing invoice INV-1793023070680 for Madam Kelly (${createdKelly.id})`);
       }
 
-      // Ensure INV-20261028-0013 is correctly linked to Test (+917389492199)
-      const testClient = await prisma.client.findFirst({
-        where: { OR: [{ phone: '+917389492199' }, { whatsapp: '+917389492199' }] },
+      // Clean up temporary test/dummy walk-in clients so they do not pollute /clients directory
+      const testPhones = ['+917693091260', '+919876543210', '+917389492199', '+237670999888'];
+      const dummyClients = await prisma.client.findMany({
+        where: {
+          OR: [
+            { phone: { in: testPhones } },
+            { phone: { startsWith: 'WALK-' } },
+            { name: { startsWith: 'Walk-in (' } },
+            { name: { in: ['anan', 'Rahul Walkin Test', 'Test'] } },
+          ],
+        },
       });
-      if (testClient) {
+
+      for (const dc of dummyClients) {
+        // Copy name and phone to any linked invoices so invoices never lose their customer data
         await prisma.invoice.updateMany({
-          where: { invoiceNumber: 'INV-20261028-0013' },
-          data: { clientId: testClient.id },
+          where: { clientId: dc.id },
+          data: {
+            clientName: dc.name,
+            clientPhone: dc.phone.startsWith('WALK-') ? null : dc.phone,
+            clientId: null,
+          },
         });
+
+        // Delete dummy client from Client table
+        try {
+          await prisma.client.delete({ where: { id: dc.id } });
+          logger.info(`[InvoicesService] Cleaned up temporary walk-in test client: ${dc.name} (${dc.phone})`);
+        } catch (e: any) {
+          logger.warn(`[InvoicesService] Note while cleaning dummy client ${dc.id}:`, e?.message || e);
+        }
       }
     } catch (err: any) {
       logger.warn('[InvoicesService] Note during walk-in invoice sync:', err?.message || err);
@@ -652,6 +635,8 @@ export class InvoicesService {
       conditions.push({
         OR: [
           { invoiceNumber: { contains: s } },
+          { clientName: { contains: s } },
+          { clientPhone: { contains: s } },
           { client: { name: { contains: s } } },
           { client: { phone: { contains: s } } },
         ],
@@ -711,8 +696,9 @@ export class InvoicesService {
       const remainingAmount = Math.max(0, Number(inv.total) - paidAmount);
       return {
         ...inv,
-        clientPhone: inv.client?.phone || inv.client?.whatsapp || null,
-        phone: inv.client?.phone || inv.client?.whatsapp || null,
+        clientName: inv.client?.name || inv.clientName || 'Walk in',
+        clientPhone: inv.clientPhone || inv.client?.phone || inv.client?.whatsapp || null,
+        phone: inv.clientPhone || inv.client?.phone || inv.client?.whatsapp || null,
         notes: inv.appointment?.notes || null,
         paidAmount,
         remainingAmount,
@@ -801,8 +787,9 @@ export class InvoicesService {
 
     return {
       ...invoice,
-      clientPhone: invoice.client?.phone || invoice.client?.whatsapp || null,
-      phone: invoice.client?.phone || invoice.client?.whatsapp || null,
+      clientName: invoice.client?.name || invoice.clientName || 'Walk in',
+      clientPhone: invoice.clientPhone || invoice.client?.phone || invoice.client?.whatsapp || null,
+      phone: invoice.clientPhone || invoice.client?.phone || invoice.client?.whatsapp || null,
       notes: invoice.appointment?.notes || null,
       paidAmount,
       remainingAmount,
