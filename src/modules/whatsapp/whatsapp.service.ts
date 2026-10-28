@@ -887,10 +887,13 @@ export class WhatsAppService {
   async triggerDailyCloseBoss(input: DailyCloseTriggerInput, authUser: AuthContextUser) {
     const now = new Date();
     const businessDate = input.businessDate || input.date || now.toISOString().split('T')[0];
+    const targetRecipientPhone: string = (input.recipientPhone && input.recipientPhone.trim())
+      ? input.recipientPhone.trim()
+      : (this.getBossPhoneNumber() || '+237676761349');
+
     if (input.recipientPhone && input.recipientPhone.trim()) {
       await this.setBossPhoneNumber(input.recipientPhone.trim()).catch(() => {});
     }
-    const targetRecipientPhone = input.recipientPhone || this.getBossPhoneNumber();
 
     // Ensure DAILY_CLOSE_BOSS automation is active in database
     await prisma.whatsAppAutomation.upsert({
@@ -911,11 +914,13 @@ export class WhatsAppService {
     const message = this.compileTemplate(setting.template, event.placeholders);
 
     // Timestamped idempotency key ensures manual clicks from Manager dashboard always dispatch
-    const cleanDigits = (targetRecipientPhone || 'boss').replace(/[^\d]/g, '');
+    const cleanDigits = targetRecipientPhone.replace(/[^\d]/g, '') || 'boss';
     const idempotencyKey = `daily-close:${businessDate}:${cleanDigits}:${Date.now()}`;
 
+    const finalRecipientPhone: string = targetRecipientPhone || event.recipient.phone || '+237676761349';
+
     return this.dispatchMessage({
-      recipientPhone: targetRecipientPhone || event.recipient.phone,
+      recipientPhone: finalRecipientPhone,
       message,
       idempotencyKey,
       automationType: WhatsAppAutomationType.DAILY_CLOSE_BOSS,
