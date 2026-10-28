@@ -415,9 +415,21 @@ export class NotificationEventBuilder {
     const startOfDay = new Date(`${businessDate}T00:00:00.000Z`);
     const endOfDay = new Date(`${businessDate}T23:59:59.999Z`);
 
+    // 1. All payments recorded for this day
     const payments = await prisma.payment.findMany({
       where: {
         paidAt: { gte: startOfDay, lte: endOfDay },
+      },
+    });
+
+    // 2. All paid invoices on this business date
+    const paidInvoices = await prisma.invoice.findMany({
+      where: {
+        date: { gte: startOfDay, lte: endOfDay },
+        status: InvoiceStatus.PAID,
+      },
+      include: {
+        payments: true,
       },
     });
 
@@ -426,20 +438,45 @@ export class NotificationEventBuilder {
     let momoAmount = 0;
     let orangeAmount = 0;
 
+    const countedInvoiceIds = new Set<string>();
+
     for (const p of payments) {
       const amt = Number(p.amount);
       totalRevenue += amt;
       if (p.paymentMethod === 'CASH') cashAmount += amt;
       if (p.paymentMethod === 'MTN_MOMO') momoAmount += amt;
       if (p.paymentMethod === 'ORANGE_MONEY') orangeAmount += amt;
+      if (p.invoiceId) countedInvoiceIds.add(p.invoiceId);
     }
 
-    const clientsServed = await prisma.appointment.count({
+    // Failsafe: Include revenue from paid invoices that do not have a separate payment record
+    for (const inv of paidInvoices) {
+      if (!countedInvoiceIds.has(inv.id) && inv.payments.length === 0) {
+        const invTotal = Number(inv.total || 0);
+        if (invTotal > 0) {
+          totalRevenue += invTotal;
+          cashAmount += invTotal; // default to cash if no method specified
+        }
+      }
+    }
+
+    // 3. Clients served: count completed appointments + walk-in / direct paid invoices
+    const completedAppointmentsCount = await prisma.appointment.count({
       where: {
         appointmentDate: { gte: startOfDay, lte: endOfDay },
         status: AppointmentStatus.COMPLETED,
       },
     });
+
+    const walkInPaidInvoicesCount = await prisma.invoice.count({
+      where: {
+        date: { gte: startOfDay, lte: endOfDay },
+        status: InvoiceStatus.PAID,
+        appointmentId: null,
+      },
+    });
+
+    const clientsServed = completedAppointmentsCount + walkInPaidInvoicesCount;
 
     let recipientPhone: string | undefined = recipientPhoneOverride;
 

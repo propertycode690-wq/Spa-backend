@@ -23,6 +23,8 @@ import {
   StockActivityType,
   LoyaltyTransactionType,
   PaymentMethod,
+  InvoiceStatus,
+  InvoiceItemType,
 } from '@prisma/client';
 
 export class ReportsService {
@@ -99,7 +101,20 @@ export class ReportsService {
         amount: true,
       },
     });
-    const totalRevenue = Number(paymentAgg._sum.amount || 0);
+    let totalRevenue = Number(paymentAgg._sum.amount || 0);
+
+    // Also include any invoices marked PAID in date range without a separate payment row
+    const orphanedPaidInvoices = await prisma.invoice.findMany({
+      where: {
+        date: { gte: startDate, lte: endDate },
+        status: InvoiceStatus.PAID,
+        payments: { none: {} },
+      },
+      select: { total: true },
+    });
+    for (const inv of orphanedPaidInvoices) {
+      totalRevenue += Number(inv.total || 0);
+    }
 
     // Total appointments in date range
     const totalAppointments = await prisma.appointment.count({
@@ -111,8 +126,8 @@ export class ReportsService {
       },
     });
 
-    // Completed services in date range
-    const completedServices = await prisma.appointmentService.count({
+    // Completed services in date range (both appointment services AND walk-in invoice services)
+    const appointmentServicesCount = await prisma.appointmentService.count({
       where: {
         status: AppointmentServiceStatus.COMPLETED,
         completedAt: {
@@ -121,6 +136,19 @@ export class ReportsService {
         },
       },
     });
+
+    const walkInInvoiceServicesCount = await prisma.invoiceItem.count({
+      where: {
+        itemType: InvoiceItemType.SERVICE,
+        appointmentServiceId: null,
+        invoice: {
+          date: { gte: startDate, lte: endDate },
+          status: InvoiceStatus.PAID,
+        },
+      },
+    });
+
+    const completedServices = appointmentServicesCount + walkInInvoiceServicesCount;
 
     // Active clients
     const activeClients = await prisma.client.count({
@@ -217,6 +245,27 @@ export class ReportsService {
       }
 
       const dateKey = p.paidAt.toISOString().split('T')[0];
+      const existing = timelineMap.get(dateKey) || { amount: 0, count: 0 };
+      existing.amount += amt;
+      existing.count += 1;
+      timelineMap.set(dateKey, existing);
+    }
+
+    // Failsafe: include paid invoices without a separate payment row
+    const orphanedPaidInvoices = await prisma.invoice.findMany({
+      where: {
+        date: { gte: startDate, lte: endDate },
+        status: InvoiceStatus.PAID,
+        payments: { none: {} },
+      },
+      select: { total: true, date: true },
+    });
+    for (const inv of orphanedPaidInvoices) {
+      const amt = Number(inv.total || 0);
+      totalRevenue += amt;
+      methodCounts.CASH.count += 1;
+      methodCounts.CASH.amount += amt;
+      const dateKey = inv.date.toISOString().split('T')[0];
       const existing = timelineMap.get(dateKey) || { amount: 0, count: 0 };
       existing.amount += amt;
       existing.count += 1;
@@ -413,21 +462,39 @@ export class ReportsService {
     const performanceList: TechnicianPerformanceItem[] = [];
 
     for (const tech of technicians) {
-      // Completed services count and revenue generated
-      const completedServices = await prisma.appointmentService.findMany({
-        where: {
-          technicianId: tech.id,
-          status: AppointmentServiceStatus.COMPLETED,
-          completedAt: {
-            gte: startDate,
-            lte: endDate,
+      // Completed services from both appointments AND paid invoices
+      const [appointmentServices, invoiceServices] = await Promise.all([
+        prisma.appointmentService.findMany({
+          where: {
+            technicianId: tech.id,
+            status: AppointmentServiceStatus.COMPLETED,
+            completedAt: {
+              gte: startDate,
+              lte: endDate,
+            },
           },
-        },
-        select: { price: true },
-      });
+          select: { price: true },
+        }),
+        prisma.invoiceItem.findMany({
+          where: {
+            technicianId: tech.id,
+            itemType: InvoiceItemType.SERVICE,
+            appointmentServiceId: null,
+            invoice: {
+              date: { gte: startDate, lte: endDate },
+              status: InvoiceStatus.PAID,
+            },
+          },
+          select: { price: true, quantity: true },
+        }),
+      ]);
 
-      const servicesCompleted = completedServices.length;
-      const revenueGenerated = completedServices.reduce((acc, s) => acc + Number(s.price), 0);
+      const servicesCompleted =
+        appointmentServices.length +
+        invoiceServices.reduce((sum, it) => sum + (it.quantity || 1), 0);
+      const revenueGenerated =
+        appointmentServices.reduce((acc, s) => acc + Number(s.price), 0) +
+        invoiceServices.reduce((acc, s) => acc + Number(s.price) * (s.quantity || 1), 0);
       const averageTicket = servicesCompleted > 0 ? Math.round(revenueGenerated / servicesCompleted) : 0;
 
       let commissionEarned: number | undefined = undefined;
