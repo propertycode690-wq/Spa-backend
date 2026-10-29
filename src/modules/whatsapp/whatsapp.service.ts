@@ -18,6 +18,7 @@ import { invoicePdfService } from '../invoices/invoice-pdf.service';
 import fs from 'fs';
 import path from 'path';
 import { logger } from '../../utils/logger';
+import { chatbotService } from './chatbot/chatbot.service';
 
 export function normalizeAutomationType(input: string): WhatsAppAutomationType {
   const up = (input || '').toUpperCase().replace(/-/g, '_');
@@ -1369,6 +1370,35 @@ export class WhatsAppService {
             });
             updatedCount++;
           }
+        }
+
+        // ==========================================
+        // Process Inbound Customer WhatsApp Messages (AI Chatbot)
+        // ==========================================
+        const incomingMessages = change?.value?.messages || [];
+        const contacts = change?.value?.contacts || [];
+
+        for (const msg of incomingMessages) {
+          const contact = contacts.find((c: any) => c.wa_id === msg.from);
+          const senderName = contact?.profile?.name;
+
+          // Asynchronously trigger AI Chatbot conversation pipeline
+          chatbotService
+            .handleIncomingMessage({
+              from: msg.from,
+              id: msg.id,
+              timestamp: msg.timestamp,
+              type: msg.type,
+              text: msg.text,
+              name: senderName,
+            })
+            .catch((err) => {
+              logger.error('[WhatsApp Webhook] Exception running chatbot handler', {
+                messageId: msg.id,
+                from: msg.from,
+                error: err?.message,
+              });
+            });
         }
       }
     }
