@@ -16,6 +16,7 @@ const invoice_pdf_service_1 = require("../invoices/invoice-pdf.service");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const logger_1 = require("../../utils/logger");
+const chatbot_service_1 = require("./chatbot/chatbot.service");
 function normalizeAutomationType(input) {
     const up = (input || '').toUpperCase().replace(/-/g, '_');
     if (up === 'BIRTHDAY_GREETING' || up === 'BIRTHDAY')
@@ -264,12 +265,17 @@ class WhatsAppService {
         if (templateName) {
             const resolvedLanguage = templateLanguage ||
                 ([
+                    'client_welcome',
                     'appointment_reminder',
+                    'appointment_reminder_2h',
                     'payment_confirmation_',
                     'service_thank_you',
+                    'service_feedback_request',
                     'birthday_greeting',
                     'anniversary_greeting',
                     'rebooking_reminder',
+                    'daily_close_summary',
+                    'invoice_pdf_receipt',
                 ].includes(templateName)
                     ? 'en'
                     : 'en_US');
@@ -804,14 +810,36 @@ class WhatsAppService {
     async triggerDailyCloseBoss(input, authUser) {
         const now = new Date();
         const businessDate = input.businessDate || input.date || now.toISOString().split('T')[0];
-        const targetRecipientPhone = input.recipientPhone || this.getBossPhoneNumber();
+        const targetRecipientPhone = (input.recipientPhone && input.recipientPhone.trim())
+            ? input.recipientPhone.trim()
+            : (this.getBossPhoneNumber() || '+237676761349');
+        if (input.recipientPhone && input.recipientPhone.trim()) {
+            await this.setBossPhoneNumber(input.recipientPhone.trim()).catch(() => { });
+        }
+        // Ensure DAILY_CLOSE_BOSS automation is active in database
+        await database_1.default.whatsAppAutomation.upsert({
+            where: { type: whatsapp_types_1.WhatsAppAutomationType.DAILY_CLOSE_BOSS },
+            create: {
+                type: whatsapp_types_1.WhatsAppAutomationType.DAILY_CLOSE_BOSS,
+                isActive: true,
+                template: 'OMEGA SPA Daily Close Summary ({todayDate}): Total Revenue: {totalRevenue} FCFA | Clients Served: {clientsServed} | Cash: {cashAmount} FCFA | MoMo: {momoAmount} FCFA | Orange: {orangeAmount} FCFA.',
+                timing: '19:30',
+            },
+            update: {
+                isActive: true,
+            },
+        }).catch(() => { });
         const event = await notification_event_builder_1.notificationEventBuilder.buildDailyCloseEvent(businessDate, authUser.id, targetRecipientPhone);
         const setting = await this.getAutomationByType(whatsapp_types_1.WhatsAppAutomationType.DAILY_CLOSE_BOSS);
         const message = this.compileTemplate(setting.template, event.placeholders);
+        // Timestamped idempotency key ensures manual clicks from Manager dashboard always dispatch
+        const cleanDigits = targetRecipientPhone.replace(/[^\d]/g, '') || 'boss';
+        const idempotencyKey = `daily-close:${businessDate}:${cleanDigits}:${Date.now()}`;
+        const finalRecipientPhone = targetRecipientPhone || event.recipient.phone || '+237676761349';
         return this.dispatchMessage({
-            recipientPhone: event.recipient.phone || targetRecipientPhone,
+            recipientPhone: finalRecipientPhone,
             message,
-            idempotencyKey: event.idempotencyKey,
+            idempotencyKey,
             automationType: whatsapp_types_1.WhatsAppAutomationType.DAILY_CLOSE_BOSS,
             templateName: 'daily_close_summary',
             templateLanguage: 'en',
@@ -1118,25 +1146,133 @@ class WhatsAppService {
     }
     /**
      * Retry message (supports FAILED and QUEUED)
+     * Intelligently reconstructs Meta template metadata based on automationType
+     * to strictly prevent Meta Error 131047 (sending free-form text outside 24h window).
      */
     async retryFailedMessage(logId) {
         const existing = await database_1.default.whatsAppMessageLog.findUnique({
             where: { id: logId },
+            include: {
+                client: true,
+                appointment: {
+                    include: {
+                        mainTechnician: { include: { staffProfile: true } },
+                    },
+                },
+                invoice: true,
+            },
         });
         if (!existing) {
             throw new errorHandler_1.AppError('WhatsApp message log not found', constants_1.HTTP_STATUS.NOT_FOUND);
         }
+        const log = existing;
+        let templateName = undefined;
+        let templateLanguage = 'en';
+        let templateVariables = undefined;
+        const clientName = log.client?.name?.trim() || 'Valued Guest';
+        switch (log.automationType) {
+            case whatsapp_types_1.WhatsAppAutomationType.CLIENT_WELCOME: {
+                templateName = 'client_welcome';
+                templateLanguage = 'en';
+                templateVariables = [clientName];
+                break;
+            }
+            case whatsapp_types_1.WhatsAppAutomationType.APPOINTMENT_REMINDER:
+            case whatsapp_types_1.WhatsAppAutomationType.APPOINTMENT_24H: {
+                templateName = 'appointment_reminder';
+                templateLanguage = 'en';
+                const dateStr = log.appointment?.appointmentDate
+                    ? new Date(log.appointment.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+                    : 'upcoming';
+                const timeStr = log.appointment?.appointmentTime || '14:00';
+                const serviceName = log.appointment?.serviceSummary || 'Spa Service';
+                const techName = log.appointment?.mainTechnician?.staffProfile?.name || 'our specialist';
+                templateVariables = [clientName, `${dateStr} at ${timeStr}`, serviceName, techName];
+                break;
+            }
+            case whatsapp_types_1.WhatsAppAutomationType.APPOINTMENT_2H: {
+                templateName = 'appointment_reminder_2h';
+                templateLanguage = 'en';
+                const timeStr = log.appointment?.appointmentTime || '10:00';
+                const serviceName = log.appointment?.serviceSummary || 'Spa Service';
+                const techName = log.appointment?.mainTechnician?.staffProfile?.name || 'our specialist';
+                templateVariables = [clientName, timeStr, serviceName, techName];
+                break;
+            }
+            case whatsapp_types_1.WhatsAppAutomationType.PAYMENT_CONFIRMATION: {
+                templateName = 'payment_confirmation_';
+                templateLanguage = 'en';
+                const total = log.invoice ? Number(log.invoice.total).toLocaleString('fr-FR') : '0';
+                const invoiceNum = log.invoice?.invoiceNumber || 'INV-0000';
+                const paymentMethod = (log.invoice?.paymentMethod || 'CASH').replace('_', ' ');
+                const loyaltyPoints = log.client?.loyaltyPoints || 0;
+                templateVariables = [clientName, total, invoiceNum, paymentMethod, loyaltyPoints];
+                break;
+            }
+            case whatsapp_types_1.WhatsAppAutomationType.AFTER_SERVICE: {
+                templateName = 'service_thank_you';
+                templateLanguage = 'en';
+                const serviceName = log.appointment?.serviceSummary || 'Spa Treatment';
+                const techName = log.appointment?.mainTechnician?.staffProfile?.name || 'your technician';
+                const points = log.client?.loyaltyPoints || 0;
+                templateVariables = [clientName, serviceName, techName, points];
+                break;
+            }
+            case whatsapp_types_1.WhatsAppAutomationType.BIRTHDAY: {
+                templateName = 'birthday_greeting';
+                templateLanguage = 'en';
+                templateVariables = [clientName, 50];
+                break;
+            }
+            case whatsapp_types_1.WhatsAppAutomationType.ANNIVERSARY: {
+                templateName = 'anniversary_greeting';
+                templateLanguage = 'en';
+                templateVariables = [clientName];
+                break;
+            }
+            case whatsapp_types_1.WhatsAppAutomationType.REBOOKING: {
+                templateName = 'rebooking_reminder';
+                templateLanguage = 'en';
+                templateVariables = [clientName, 30, 15];
+                break;
+            }
+            case whatsapp_types_1.WhatsAppAutomationType.DAILY_CLOSE_BOSS: {
+                templateName = 'daily_close_summary';
+                templateLanguage = 'en';
+                break;
+            }
+        }
+        const metadata = templateName
+            ? {
+                template: {
+                    name: templateName,
+                    language: templateLanguage,
+                    components: templateVariables && templateVariables.length > 0
+                        ? [
+                            {
+                                type: 'body',
+                                parameters: templateVariables.map((v) => ({
+                                    type: 'text',
+                                    text: String(v ?? ''),
+                                })),
+                            },
+                        ]
+                        : undefined,
+                },
+            }
+            : undefined;
         const sendResult = await whatsapp_adapter_1.whatsappAdapter.send({
             channel: 'WHATSAPP',
-            recipient: { phone: existing.recipientPhone },
-            content: existing.message,
-            idempotencyKey: `retry-${existing.idempotencyKey}-${Date.now()}`,
+            recipient: { phone: log.recipientPhone, clientId: log.clientId || undefined },
+            content: log.message,
+            idempotencyKey: `retry-${log.idempotencyKey}-${Date.now()}`,
+            metadata,
         });
         return database_1.default.whatsAppMessageLog.update({
             where: { id: logId },
             data: {
                 status: sendResult.status,
-                providerMessageId: sendResult.providerMessageId || existing.providerMessageId,
+                providerMessageId: sendResult.providerMessageId || log.providerMessageId,
                 failureReason: sendResult.failureReason || null,
                 sentAt: sendResult.status === 'SENT' ? new Date() : null,
             },
@@ -1212,6 +1348,32 @@ class WhatsAppService {
                         });
                         updatedCount++;
                     }
+                }
+                // ==========================================
+                // Process Inbound Customer WhatsApp Messages (AI Chatbot)
+                // ==========================================
+                const incomingMessages = change?.value?.messages || [];
+                const contacts = change?.value?.contacts || [];
+                for (const msg of incomingMessages) {
+                    const contact = contacts.find((c) => c.wa_id === msg.from);
+                    const senderName = contact?.profile?.name;
+                    // Asynchronously trigger AI Chatbot conversation pipeline
+                    chatbot_service_1.chatbotService
+                        .handleIncomingMessage({
+                        from: msg.from,
+                        id: msg.id,
+                        timestamp: msg.timestamp,
+                        type: msg.type,
+                        text: msg.text,
+                        name: senderName,
+                    })
+                        .catch((err) => {
+                        logger_1.logger.error('[WhatsApp Webhook] Exception running chatbot handler', {
+                            messageId: msg.id,
+                            from: msg.from,
+                            error: err?.message,
+                        });
+                    });
                 }
             }
         }

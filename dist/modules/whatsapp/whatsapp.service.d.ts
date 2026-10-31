@@ -528,6 +528,8 @@ export declare class WhatsAppService {
     setBossPhoneNumber(phone: string): Promise<string>;
     /**
      * Retry message (supports FAILED and QUEUED)
+     * Intelligently reconstructs Meta template metadata based on automationType
+     * to strictly prevent Meta Error 131047 (sending free-form text outside 24h window).
      */
     retryFailedMessage(logId: string): Promise<{
         message: string;

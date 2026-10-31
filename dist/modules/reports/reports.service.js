@@ -80,7 +80,19 @@ class ReportsService {
                 amount: true,
             },
         });
-        const totalRevenue = Number(paymentAgg._sum.amount || 0);
+        let totalRevenue = Number(paymentAgg._sum.amount || 0);
+        // Also include any invoices marked PAID in date range without a separate payment row
+        const orphanedPaidInvoices = await database_1.default.invoice.findMany({
+            where: {
+                date: { gte: startDate, lte: endDate },
+                status: client_1.InvoiceStatus.PAID,
+                payments: { none: {} },
+            },
+            select: { total: true },
+        });
+        for (const inv of orphanedPaidInvoices) {
+            totalRevenue += Number(inv.total || 0);
+        }
         // Total appointments in date range
         const totalAppointments = await database_1.default.appointment.count({
             where: {
@@ -90,8 +102,8 @@ class ReportsService {
                 },
             },
         });
-        // Completed services in date range
-        const completedServices = await database_1.default.appointmentService.count({
+        // Completed services in date range (both appointment services AND walk-in invoice services)
+        const appointmentServicesCount = await database_1.default.appointmentService.count({
             where: {
                 status: client_1.AppointmentServiceStatus.COMPLETED,
                 completedAt: {
@@ -100,6 +112,17 @@ class ReportsService {
                 },
             },
         });
+        const walkInInvoiceServicesCount = await database_1.default.invoiceItem.count({
+            where: {
+                itemType: client_1.InvoiceItemType.SERVICE,
+                appointmentServiceId: null,
+                invoice: {
+                    date: { gte: startDate, lte: endDate },
+                    status: client_1.InvoiceStatus.PAID,
+                },
+            },
+        });
+        const completedServices = appointmentServicesCount + walkInInvoiceServicesCount;
         // Active clients
         const activeClients = await database_1.default.client.count({
             where: { isActive: true },
@@ -184,6 +207,26 @@ class ReportsService {
                 methodCounts[p.paymentMethod].amount += amt;
             }
             const dateKey = p.paidAt.toISOString().split('T')[0];
+            const existing = timelineMap.get(dateKey) || { amount: 0, count: 0 };
+            existing.amount += amt;
+            existing.count += 1;
+            timelineMap.set(dateKey, existing);
+        }
+        // Failsafe: include paid invoices without a separate payment row
+        const orphanedPaidInvoices = await database_1.default.invoice.findMany({
+            where: {
+                date: { gte: startDate, lte: endDate },
+                status: client_1.InvoiceStatus.PAID,
+                payments: { none: {} },
+            },
+            select: { total: true, date: true },
+        });
+        for (const inv of orphanedPaidInvoices) {
+            const amt = Number(inv.total || 0);
+            totalRevenue += amt;
+            methodCounts.CASH.count += 1;
+            methodCounts.CASH.amount += amt;
+            const dateKey = inv.date.toISOString().split('T')[0];
             const existing = timelineMap.get(dateKey) || { amount: 0, count: 0 };
             existing.amount += amt;
             existing.count += 1;
@@ -351,20 +394,36 @@ class ReportsService {
         });
         const performanceList = [];
         for (const tech of technicians) {
-            // Completed services count and revenue generated
-            const completedServices = await database_1.default.appointmentService.findMany({
-                where: {
-                    technicianId: tech.id,
-                    status: client_1.AppointmentServiceStatus.COMPLETED,
-                    completedAt: {
-                        gte: startDate,
-                        lte: endDate,
+            // Completed services from both appointments AND paid invoices
+            const [appointmentServices, invoiceServices] = await Promise.all([
+                database_1.default.appointmentService.findMany({
+                    where: {
+                        technicianId: tech.id,
+                        status: client_1.AppointmentServiceStatus.COMPLETED,
+                        completedAt: {
+                            gte: startDate,
+                            lte: endDate,
+                        },
                     },
-                },
-                select: { price: true },
-            });
-            const servicesCompleted = completedServices.length;
-            const revenueGenerated = completedServices.reduce((acc, s) => acc + Number(s.price), 0);
+                    select: { price: true },
+                }),
+                database_1.default.invoiceItem.findMany({
+                    where: {
+                        technicianId: tech.id,
+                        itemType: client_1.InvoiceItemType.SERVICE,
+                        appointmentServiceId: null,
+                        invoice: {
+                            date: { gte: startDate, lte: endDate },
+                            status: client_1.InvoiceStatus.PAID,
+                        },
+                    },
+                    select: { price: true, quantity: true },
+                }),
+            ]);
+            const servicesCompleted = appointmentServices.length +
+                invoiceServices.reduce((sum, it) => sum + (it.quantity || 1), 0);
+            const revenueGenerated = appointmentServices.reduce((acc, s) => acc + Number(s.price), 0) +
+                invoiceServices.reduce((acc, s) => acc + Number(s.price) * (s.quantity || 1), 0);
             const averageTicket = servicesCompleted > 0 ? Math.round(revenueGenerated / servicesCompleted) : 0;
             let commissionEarned = undefined;
             // Sensitive financial data: Hide commission details from RECEPTION

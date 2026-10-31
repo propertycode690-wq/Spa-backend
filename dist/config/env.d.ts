@@ -16,6 +16,8 @@ interface EnvConfig {
     INSTAGRAM_ACCOUNT_ID: string;
     TIKTOK_ACCESS_TOKEN: string;
     TIKTOK_BUSINESS_ID: string;
+    OPENAI_API_KEY: string;
+    OPENAI_MODEL: string;
 }
 export declare const env: EnvConfig;
 export {};

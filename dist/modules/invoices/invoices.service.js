@@ -70,14 +70,17 @@ class InvoicesService {
         let lastError = null;
         for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
             try {
-                const dateObj = new Date();
+                const dateObj = data.date ? new Date(data.date) : new Date();
                 const dateStr = dateObj.toISOString().slice(0, 10).replace(/-/g, '');
                 const prefix = `INV-${dateStr}-`;
-                // Count only invoices with today's date prefix for a tighter sequence
-                const todayCount = await database_1.default.invoice.count({
-                    where: { invoiceNumber: { startsWith: prefix } },
-                });
-                const invoiceNumber = `${prefix}${String(todayCount + 1 + attempt).padStart(4, '0')}`;
+                // If client provided an invoiceNumber and it's attempt 0, use it or generate sequential prefix
+                let invoiceNumber = data.invoiceNumber;
+                if (!invoiceNumber || attempt > 0) {
+                    const todayCount = await database_1.default.invoice.count({
+                        where: { invoiceNumber: { startsWith: prefix } },
+                    });
+                    invoiceNumber = `${prefix}${String(todayCount + 1 + attempt).padStart(4, '0')}`;
+                }
                 const invoice = await database_1.default.$transaction(async (tx) => {
                     // Process retail products if requested
                     let retailSubtotal = 0;
@@ -117,11 +120,37 @@ class InvoicesService {
                     const combinedSubtotal = subtotal + retailSubtotal;
                     const discount = data.discount || 0;
                     const total = Math.max(0, combinedSubtotal - discount);
-                    const targetClientId = appointment ? appointment.clientId : (data.clientId || null);
+                    let targetClientId = appointment ? appointment.clientId : (data.clientId || null);
+                    // Clean phone and name
+                    const rawPhone = (data.clientPhone || data.phone || '').trim();
+                    const digitsOnly = rawPhone.replace(/[^\d+]/g, '');
+                    const cleanPhone = (digitsOnly && digitsOnly !== '+237' && digitsOnly !== '+' && digitsOnly.length >= 7) ? digitsOnly : null;
+                    const rawName = (data.clientName || '').trim();
+                    const cleanName = (rawName && rawName.toLowerCase() !== 'walk in') ? rawName : null;
+                    // If no clientId was explicitly provided, check if phone matches an existing registered client
+                    if (!targetClientId && cleanPhone) {
+                        const existingClient = await tx.client.findFirst({
+                            where: {
+                                OR: [
+                                    { phone: cleanPhone },
+                                    { phone: rawPhone },
+                                    { whatsapp: cleanPhone },
+                                    { whatsapp: rawPhone },
+                                ],
+                            },
+                        });
+                        if (existingClient) {
+                            targetClientId = existingClient.id;
+                        }
+                        // IMPORTANT: If NOT found, DO NOT create a Client profile!
+                        // Walk-in customers must never be added to the /clients directory!
+                    }
                     const created = await tx.invoice.create({
                         data: {
                             appointmentId: appointment ? appointment.id : null,
                             clientId: targetClientId,
+                            clientName: cleanName || (targetClientId ? null : 'Walk in'),
+                            clientPhone: cleanPhone || null,
                             invoiceNumber,
                             date: dateObj,
                             status: invoiceStatus,
@@ -163,14 +192,33 @@ class InvoicesService {
                         }
                     }
                     else if (data.services && data.services.length > 0) {
-                        // Snapshot direct walk-in service items
+                        // Snapshot direct walk-in service items with defensive FK verification
                         for (const s of data.services) {
+                            let validServiceId = null;
+                            if (s.serviceId) {
+                                const svcExists = await tx.service.findUnique({
+                                    where: { id: s.serviceId },
+                                    select: { id: true },
+                                });
+                                if (svcExists)
+                                    validServiceId = svcExists.id;
+                            }
+                            let validTechId = null;
+                            const candTechId = s.technicianId || (String(authUser?.role).toUpperCase() === 'TECHNICIAN' ? authUser.id : null);
+                            if (candTechId) {
+                                const userExists = await tx.user.findUnique({
+                                    where: { id: candTechId },
+                                    select: { id: true },
+                                });
+                                if (userExists)
+                                    validTechId = userExists.id;
+                            }
                             await tx.invoiceItem.create({
                                 data: {
                                     invoiceId: created.id,
                                     appointmentServiceId: null,
-                                    serviceId: s.serviceId || null,
-                                    technicianId: s.technicianId || (String(authUser?.role).toUpperCase() === 'TECHNICIAN' ? authUser.id : null),
+                                    serviceId: validServiceId,
+                                    technicianId: validTechId,
                                     itemType: client_1.InvoiceItemType.SERVICE,
                                     name: s.name || s.service || 'Spa Service',
                                     price: Number(s.price || 0),
@@ -373,6 +421,114 @@ class InvoicesService {
                 });
                 logger_1.logger.info(`[InvoicesService] Restored missing invoice INV-1792782025864 for Madame Julie (${created.id})`);
             }
+            // Restore missing Oct 26 Walk-In Invoice INV-1793023070680 for Madam Kelly (22,000 CFA)
+            const existingKelly = await database_1.default.invoice.findFirst({
+                where: {
+                    OR: [
+                        { invoiceNumber: 'INV-1793023070680' },
+                        { invoiceNumber: { contains: '1793023070680' } },
+                    ],
+                },
+            });
+            if (!existingKelly) {
+                let kellyClient = await database_1.default.client.findFirst({
+                    where: {
+                        OR: [
+                            { name: { contains: 'Kelly' } },
+                            { name: { contains: 'KELLY' } },
+                        ],
+                    },
+                });
+                if (!kellyClient) {
+                    kellyClient = await database_1.default.client.create({
+                        data: {
+                            name: 'MADAM KELLY',
+                            phone: '650 00 22 26',
+                            source: 'DIRECT',
+                        },
+                    });
+                }
+                const staff = await database_1.default.user.findFirst({
+                    where: {
+                        OR: [
+                            { role: { name: 'RECEPTION' } },
+                            { role: { name: 'MANAGER' } },
+                        ],
+                    },
+                });
+                const createdKelly = await database_1.default.invoice.create({
+                    data: {
+                        id: 'inv-1793023070680',
+                        invoiceNumber: 'INV-1793023070680',
+                        clientId: kellyClient.id,
+                        date: new Date('2026-10-26T00:00:00.000Z'),
+                        status: client_1.InvoiceStatus.PAID,
+                        subtotal: 22000,
+                        discount: 0,
+                        total: 22000,
+                        pointsEarned: 22,
+                        pointsRedeemed: 0,
+                        createdAt: new Date('2026-10-26T16:30:00.000Z'),
+                        updatedAt: new Date('2026-10-26T16:35:00.000Z'),
+                        items: {
+                            create: [
+                                {
+                                    itemType: client_1.InvoiceItemType.SERVICE,
+                                    name: 'Spa & Beauty Service',
+                                    price: 22000,
+                                    quantity: 1,
+                                    technicianId: staff?.id || null,
+                                },
+                            ],
+                        },
+                        payments: staff?.id
+                            ? {
+                                create: [
+                                    {
+                                        amount: 22000,
+                                        paymentMethod: client_1.PaymentMethod.CASH,
+                                        paidAt: new Date('2026-10-26T16:35:00.000Z'),
+                                        receivedById: staff.id,
+                                        notes: 'Recorded transaction for Madam Kelly (22,000 CFA)',
+                                    },
+                                ],
+                            }
+                            : undefined,
+                    },
+                });
+                logger_1.logger.info(`[InvoicesService] Restored missing invoice INV-1793023070680 for Madam Kelly (${createdKelly.id})`);
+            }
+            // Clean up temporary test/dummy walk-in clients so they do not pollute /clients directory
+            const testPhones = ['+917693091260', '+919876543210', '+917389492199', '+237670999888'];
+            const dummyClients = await database_1.default.client.findMany({
+                where: {
+                    OR: [
+                        { phone: { in: testPhones } },
+                        { phone: { startsWith: 'WALK-' } },
+                        { name: { startsWith: 'Walk-in (' } },
+                        { name: { in: ['anan', 'Rahul Walkin Test', 'Test'] } },
+                    ],
+                },
+            });
+            for (const dc of dummyClients) {
+                // Copy name and phone to any linked invoices so invoices never lose their customer data
+                await database_1.default.invoice.updateMany({
+                    where: { clientId: dc.id },
+                    data: {
+                        clientName: dc.name,
+                        clientPhone: dc.phone.startsWith('WALK-') ? null : dc.phone,
+                        clientId: null,
+                    },
+                });
+                // Delete dummy client from Client table
+                try {
+                    await database_1.default.client.delete({ where: { id: dc.id } });
+                    logger_1.logger.info(`[InvoicesService] Cleaned up temporary walk-in test client: ${dc.name} (${dc.phone})`);
+                }
+                catch (e) {
+                    logger_1.logger.warn(`[InvoicesService] Note while cleaning dummy client ${dc.id}:`, e?.message || e);
+                }
+            }
         }
         catch (err) {
             logger_1.logger.warn('[InvoicesService] Note during walk-in invoice sync:', err?.message || err);
@@ -405,6 +561,8 @@ class InvoicesService {
             conditions.push({
                 OR: [
                     { invoiceNumber: { contains: s } },
+                    { clientName: { contains: s } },
+                    { clientPhone: { contains: s } },
                     { client: { name: { contains: s } } },
                     { client: { phone: { contains: s } } },
                 ],
@@ -422,7 +580,7 @@ class InvoicesService {
                 orderBy: { createdAt: 'desc' },
                 include: {
                     client: {
-                        select: { id: true, name: true, phone: true, quartier: true },
+                        select: { id: true, name: true, phone: true, whatsapp: true, quartier: true },
                     },
                     appointment: {
                         select: {
@@ -461,6 +619,9 @@ class InvoicesService {
             const remainingAmount = Math.max(0, Number(inv.total) - paidAmount);
             return {
                 ...inv,
+                clientName: inv.client?.name || inv.clientName || 'Walk in',
+                clientPhone: inv.clientPhone || inv.client?.phone || inv.client?.whatsapp || null,
+                phone: inv.clientPhone || inv.client?.phone || inv.client?.whatsapp || null,
                 notes: inv.appointment?.notes || null,
                 paidAmount,
                 remainingAmount,
@@ -540,6 +701,9 @@ class InvoicesService {
         const remainingAmount = Math.max(0, Number(invoice.total) - paidAmount);
         return {
             ...invoice,
+            clientName: invoice.client?.name || invoice.clientName || 'Walk in',
+            clientPhone: invoice.clientPhone || invoice.client?.phone || invoice.client?.whatsapp || null,
+            phone: invoice.clientPhone || invoice.client?.phone || invoice.client?.whatsapp || null,
             notes: invoice.appointment?.notes || null,
             paidAmount,
             remainingAmount,

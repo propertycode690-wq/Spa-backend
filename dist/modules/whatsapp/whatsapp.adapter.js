@@ -140,6 +140,7 @@ class WhatsAppProviderAdapter {
                     errorCode,
                     errorMsg,
                     recipient: normalizedPhone,
+                    templateName: templateData?.name || null,
                 });
                 return {
                     success: false,

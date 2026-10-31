@@ -88,6 +88,14 @@ class WhatsAppController {
             const validated = whatsapp_validation_1.dailyCloseTriggerSchema.parse(req.body);
             const authUser = req.user;
             const result = await whatsapp_service_1.whatsappService.triggerDailyCloseBoss(validated, authUser);
+            if (result.log?.status === 'FAILED') {
+                res.status(constants_1.HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: result.log.failureReason || 'Failed to dispatch WhatsApp daily close summary',
+                    data: result,
+                });
+                return;
+            }
             res.status(constants_1.HTTP_STATUS.OK).json({
                 success: true,
                 message: result.alreadySent

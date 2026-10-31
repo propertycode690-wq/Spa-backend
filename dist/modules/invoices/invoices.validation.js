@@ -5,14 +5,18 @@ const zod_1 = require("zod");
 const client_1 = require("@prisma/client");
 exports.createInvoiceSchema = zod_1.z.preprocess((val) => {
     if (val && typeof val === 'object') {
-        if (val.appointmentId && typeof val.appointmentId === 'object') {
-            const nested = val.appointmentId;
-            return {
-                ...nested,
-                ...val,
-                appointmentId: nested.appointmentId || nested.id || String(nested),
-            };
+        const sanitized = { ...val };
+        if (sanitized.appointmentId && typeof sanitized.appointmentId === 'object') {
+            const nested = sanitized.appointmentId;
+            sanitized.appointmentId = nested.appointmentId || nested.id || String(nested);
         }
+        if (sanitized.clientId && typeof sanitized.clientId === 'string') {
+            const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sanitized.clientId);
+            if (!isUuid) {
+                sanitized.clientId = null;
+            }
+        }
+        return sanitized;
     }
     return val;
 }, zod_1.z
@@ -20,6 +24,10 @@ exports.createInvoiceSchema = zod_1.z.preprocess((val) => {
     appointmentId: zod_1.z.string().uuid('Invalid appointmentId UUID').optional().nullable(),
     clientId: zod_1.z.string().uuid('Invalid clientId UUID').optional().nullable(),
     clientName: zod_1.z.string().optional().nullable(),
+    clientPhone: zod_1.z.string().optional().nullable(),
+    phone: zod_1.z.string().optional().nullable(),
+    date: zod_1.z.union([zod_1.z.string(), zod_1.z.date()]).optional().nullable(),
+    invoiceNumber: zod_1.z.string().optional().nullable(),
     discount: zod_1.z.number().nonnegative('Discount cannot be negative').optional().default(0),
     status: zod_1.z.enum([client_1.InvoiceStatus.DRAFT, client_1.InvoiceStatus.PENDING_PAYMENT, client_1.InvoiceStatus.PAID]).optional().default(client_1.InvoiceStatus.PENDING_PAYMENT),
     paymentMethod: zod_1.z.enum(['CASH', 'MTN_MOMO', 'ORANGE_MONEY']).optional(),

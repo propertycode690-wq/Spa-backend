@@ -359,15 +359,27 @@ class NotificationEventBuilder {
     async buildDailyCloseEvent(businessDate, authUserId, recipientPhoneOverride) {
         const startOfDay = new Date(`${businessDate}T00:00:00.000Z`);
         const endOfDay = new Date(`${businessDate}T23:59:59.999Z`);
+        // 1. All payments recorded for this day
         const payments = await database_1.default.payment.findMany({
             where: {
                 paidAt: { gte: startOfDay, lte: endOfDay },
+            },
+        });
+        // 2. All paid invoices on this business date
+        const paidInvoices = await database_1.default.invoice.findMany({
+            where: {
+                date: { gte: startOfDay, lte: endOfDay },
+                status: client_1.InvoiceStatus.PAID,
+            },
+            include: {
+                payments: true,
             },
         });
         let totalRevenue = 0;
         let cashAmount = 0;
         let momoAmount = 0;
         let orangeAmount = 0;
+        const countedInvoiceIds = new Set();
         for (const p of payments) {
             const amt = Number(p.amount);
             totalRevenue += amt;
@@ -377,13 +389,34 @@ class NotificationEventBuilder {
                 momoAmount += amt;
             if (p.paymentMethod === 'ORANGE_MONEY')
                 orangeAmount += amt;
+            if (p.invoiceId)
+                countedInvoiceIds.add(p.invoiceId);
         }
-        const clientsServed = await database_1.default.appointment.count({
+        // Failsafe: Include revenue from paid invoices that do not have a separate payment record
+        for (const inv of paidInvoices) {
+            if (!countedInvoiceIds.has(inv.id) && inv.payments.length === 0) {
+                const invTotal = Number(inv.total || 0);
+                if (invTotal > 0) {
+                    totalRevenue += invTotal;
+                    cashAmount += invTotal; // default to cash if no method specified
+                }
+            }
+        }
+        // 3. Clients served: count completed appointments + walk-in / direct paid invoices
+        const completedAppointmentsCount = await database_1.default.appointment.count({
             where: {
                 appointmentDate: { gte: startOfDay, lte: endOfDay },
                 status: client_1.AppointmentStatus.COMPLETED,
             },
         });
+        const walkInPaidInvoicesCount = await database_1.default.invoice.count({
+            where: {
+                date: { gte: startOfDay, lte: endOfDay },
+                status: client_1.InvoiceStatus.PAID,
+                appointmentId: null,
+            },
+        });
+        const clientsServed = completedAppointmentsCount + walkInPaidInvoicesCount;
         let recipientPhone = recipientPhoneOverride;
         if (!recipientPhone) {
             try {

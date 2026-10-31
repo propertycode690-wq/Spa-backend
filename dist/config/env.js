@@ -31,6 +31,8 @@ exports.env = {
     INSTAGRAM_ACCOUNT_ID: getEnvVariable('INSTAGRAM_ACCOUNT_ID', false),
     TIKTOK_ACCESS_TOKEN: getEnvVariable('TIKTOK_ACCESS_TOKEN', false),
     TIKTOK_BUSINESS_ID: getEnvVariable('TIKTOK_BUSINESS_ID', false),
+    OPENAI_API_KEY: getEnvVariable('OPENAI_API_KEY', false),
+    OPENAI_MODEL: getEnvVariable('OPENAI_MODEL', false) || 'gpt-4o-mini',
 };
 // Production readiness checks
 if (exports.env.NODE_ENV === 'production') {

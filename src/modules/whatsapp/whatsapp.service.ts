@@ -301,12 +301,17 @@ export class WhatsAppService {
       const resolvedLanguage =
         templateLanguage ||
         ([
+          'client_welcome',
           'appointment_reminder',
+          'appointment_reminder_2h',
           'payment_confirmation_',
           'service_thank_you',
+          'service_feedback_request',
           'birthday_greeting',
           'anniversary_greeting',
           'rebooking_reminder',
+          'daily_close_summary',
+          'invoice_pdf_receipt',
         ].includes(templateName)
           ? 'en'
           : 'en_US');
@@ -1266,28 +1271,140 @@ export class WhatsAppService {
 
   /**
    * Retry message (supports FAILED and QUEUED)
+   * Intelligently reconstructs Meta template metadata based on automationType
+   * to strictly prevent Meta Error 131047 (sending free-form text outside 24h window).
    */
   async retryFailedMessage(logId: string) {
     const existing = await prisma.whatsAppMessageLog.findUnique({
       where: { id: logId },
+      include: {
+        client: true,
+        appointment: {
+          include: {
+            mainTechnician: { include: { staffProfile: true } },
+          },
+        },
+        invoice: true,
+      },
     });
 
     if (!existing) {
       throw new AppError('WhatsApp message log not found', HTTP_STATUS.NOT_FOUND);
     }
 
+    const log: any = existing;
+    let templateName: string | undefined = undefined;
+    let templateLanguage: string = 'en';
+    let templateVariables: (string | number)[] | undefined = undefined;
+
+    const clientName = log.client?.name?.trim() || 'Valued Guest';
+
+    switch (log.automationType) {
+      case WhatsAppAutomationType.CLIENT_WELCOME: {
+        templateName = 'client_welcome';
+        templateLanguage = 'en';
+        templateVariables = [clientName];
+        break;
+      }
+      case WhatsAppAutomationType.APPOINTMENT_REMINDER:
+      case WhatsAppAutomationType.APPOINTMENT_24H: {
+        templateName = 'appointment_reminder';
+        templateLanguage = 'en';
+        const dateStr = log.appointment?.appointmentDate
+          ? new Date(log.appointment.appointmentDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+          : 'upcoming';
+        const timeStr = log.appointment?.appointmentTime || '14:00';
+        const serviceName = log.appointment?.serviceSummary || 'Spa Service';
+        const techName = log.appointment?.mainTechnician?.staffProfile?.name || 'our specialist';
+        templateVariables = [clientName, `${dateStr} at ${timeStr}`, serviceName, techName];
+        break;
+      }
+      case WhatsAppAutomationType.APPOINTMENT_2H: {
+        templateName = 'appointment_reminder_2h';
+        templateLanguage = 'en';
+        const timeStr = log.appointment?.appointmentTime || '10:00';
+        const serviceName = log.appointment?.serviceSummary || 'Spa Service';
+        const techName = log.appointment?.mainTechnician?.staffProfile?.name || 'our specialist';
+        templateVariables = [clientName, timeStr, serviceName, techName];
+        break;
+      }
+      case WhatsAppAutomationType.PAYMENT_CONFIRMATION: {
+        templateName = 'payment_confirmation_';
+        templateLanguage = 'en';
+        const total = log.invoice ? Number(log.invoice.total).toLocaleString('fr-FR') : '0';
+        const invoiceNum = log.invoice?.invoiceNumber || 'INV-0000';
+        const paymentMethod = (log.invoice?.paymentMethod || 'CASH').replace('_', ' ');
+        const loyaltyPoints = log.client?.loyaltyPoints || 0;
+        templateVariables = [clientName, total, invoiceNum, paymentMethod, loyaltyPoints];
+        break;
+      }
+      case WhatsAppAutomationType.AFTER_SERVICE: {
+        templateName = 'service_thank_you';
+        templateLanguage = 'en';
+        const serviceName = log.appointment?.serviceSummary || 'Spa Treatment';
+        const techName = log.appointment?.mainTechnician?.staffProfile?.name || 'your technician';
+        const points = log.client?.loyaltyPoints || 0;
+        templateVariables = [clientName, serviceName, techName, points];
+        break;
+      }
+      case WhatsAppAutomationType.BIRTHDAY: {
+        templateName = 'birthday_greeting';
+        templateLanguage = 'en';
+        templateVariables = [clientName, 50];
+        break;
+      }
+      case WhatsAppAutomationType.ANNIVERSARY: {
+        templateName = 'anniversary_greeting';
+        templateLanguage = 'en';
+        templateVariables = [clientName];
+        break;
+      }
+      case WhatsAppAutomationType.REBOOKING: {
+        templateName = 'rebooking_reminder';
+        templateLanguage = 'en';
+        templateVariables = [clientName, 30, 15];
+        break;
+      }
+      case WhatsAppAutomationType.DAILY_CLOSE_BOSS: {
+        templateName = 'daily_close_summary';
+        templateLanguage = 'en';
+        break;
+      }
+    }
+
+    const metadata = templateName
+      ? {
+          template: {
+            name: templateName,
+            language: templateLanguage,
+            components: templateVariables && templateVariables.length > 0
+              ? [
+                  {
+                    type: 'body',
+                    parameters: templateVariables.map((v) => ({
+                      type: 'text',
+                      text: String(v ?? ''),
+                    })),
+                  },
+                ]
+              : undefined,
+          },
+        }
+      : undefined;
+
     const sendResult = await whatsappAdapter.send({
       channel: 'WHATSAPP',
-      recipient: { phone: existing.recipientPhone },
-      content: existing.message,
-      idempotencyKey: `retry-${existing.idempotencyKey}-${Date.now()}`,
+      recipient: { phone: log.recipientPhone, clientId: log.clientId || undefined },
+      content: log.message,
+      idempotencyKey: `retry-${log.idempotencyKey}-${Date.now()}`,
+      metadata,
     });
 
     return prisma.whatsAppMessageLog.update({
       where: { id: logId },
       data: {
         status: sendResult.status as any,
-        providerMessageId: sendResult.providerMessageId || existing.providerMessageId,
+        providerMessageId: sendResult.providerMessageId || log.providerMessageId,
         failureReason: sendResult.failureReason || null,
         sentAt: sendResult.status === 'SENT' ? new Date() : null,
       },

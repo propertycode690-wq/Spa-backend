@@ -11,9 +11,12 @@ export declare class CommissionsService {
      */
     generateCommissionsForInvoice(invoiceId: string, txClient?: Prisma.TransactionClient): Promise<void>;
     /**
-     * Generates EmployeeCommission for the employee who introduced the client.
+     * Generates EmployeeCommission for the employee / marketer who introduced the client.
      * - Looks up client.introducedByEmployeeId from the invoice's client.
-     * - Applies REFERRAL commission rules from CommissionRule table.
+     * - For MARKETER:
+     *   1. Flat Acquisition Fee: Awarded on the client's first paid visit/invoice.
+     *   2. Lifetime Percentage: Earned on every service visit for life, deducted from the performing technician.
+     * - For Other Staff: Standard referral commission rules.
      * - Idempotent: Skips if EmployeeCommission already exists for this invoice.
      * - The referring employee must NOT be a MANAGER (Managers cannot earn referral commissions).
      */
@@ -305,6 +308,60 @@ export declare class CommissionsService {
         isFinalized: boolean;
         finalizedById: string | null;
         finalizedAt: Date | null;
+    }>;
+    /**
+     * Authoritative Marketer Performance and Commission Ledger Report
+     * Returns:
+     * - Marketer profile and contract rates
+     * - Total introduced clients count
+     * - First-visit new clients acquired (bounties earned)
+     * - Repeat visits and lifetime percentage commissions
+     * - Detailed list of introduced clients and their visits
+     */
+    getMarketerPerformance(marketerId: string, authUser: AuthContextUser): Promise<{
+        marketer: {
+            id: string;
+            email: string;
+            name: string;
+            phone: string | null;
+            contract: {
+                negotiatedPercentage: number;
+                flatAcquisitionFee: number;
+            };
+        };
+        metrics: {
+            totalClientsIntroduced: number;
+            clientsWithPaidVisits: number;
+            totalVisitsCount: number;
+            totalCommissionEarned: number;
+            totalApprovedCommission: number;
+            totalPendingCommission: number;
+        };
+        commissions: {
+            id: string;
+            invoiceId: string;
+            invoiceNumber: string;
+            invoiceDate: Date;
+            clientName: string | undefined;
+            amount: number;
+            status: import(".prisma/client").$Enums.CommissionStatus;
+            createdAt: Date;
+            technicianSplits: {
+                technicianName: string;
+                serviceName: string;
+                servicePrice: number;
+                deductionFromTech: number;
+            }[];
+        }[];
+        clients: {
+            id: string;
+            name: string;
+            phone: string;
+            totalVisits: number;
+            totalSpent: number;
+            firstVisitDate: Date;
+            lastVisitDate: Date;
+        }[];
     }>;
 }
 export declare const commissionsService: CommissionsService;

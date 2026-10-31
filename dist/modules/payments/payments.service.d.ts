@@ -97,7 +97,9 @@ export declare class PaymentsService {
             appointmentId: string | null;
             total: import("@prisma/client/runtime/library").Decimal;
             date: Date;
+            clientName: string | null;
             invoiceNumber: string;
+            clientPhone: string | null;
             subtotal: import("@prisma/client/runtime/library").Decimal;
             discount: import("@prisma/client/runtime/library").Decimal;
             pointsEarned: number;

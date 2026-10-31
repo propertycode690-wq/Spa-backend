@@ -2,6 +2,9 @@ import { Prisma } from '@prisma/client';
 import { CreateInvoiceInput, AddInvoiceItemInput, UpdateInvoiceInput, InvoiceQueryFilter, AuthContextUser } from './invoices.types';
 export declare class InvoicesService {
     createInvoice(data: CreateInvoiceInput, authUser: AuthContextUser): Promise<{
+        clientName: string;
+        clientPhone: string | null;
+        phone: string | null;
         notes: string | null;
         paidAmount: number;
         remainingAmount: number;
@@ -112,6 +115,9 @@ export declare class InvoicesService {
     ensureMissingWalkInInvoices(): Promise<void>;
     getInvoices(query: InvoiceQueryFilter, authUser?: AuthContextUser): Promise<{
         invoices: {
+            clientName: string;
+            clientPhone: string | null;
+            phone: string | null;
             notes: string | null;
             paidAmount: number;
             remainingAmount: number;
@@ -119,6 +125,7 @@ export declare class InvoicesService {
                 id: string;
                 phone: string;
                 name: string;
+                whatsapp: string | null;
                 quartier: string | null;
             } | null;
             appointment: {
@@ -198,6 +205,9 @@ export declare class InvoicesService {
     }>;
     getPendingInvoices(authUser?: AuthContextUser): Promise<{
         invoices: {
+            clientName: string;
+            clientPhone: string | null;
+            phone: string | null;
             notes: string | null;
             paidAmount: number;
             remainingAmount: number;
@@ -205,6 +215,7 @@ export declare class InvoicesService {
                 id: string;
                 phone: string;
                 name: string;
+                whatsapp: string | null;
                 quartier: string | null;
             } | null;
             appointment: {
@@ -283,6 +294,9 @@ export declare class InvoicesService {
         };
     }>;
     getInvoiceById(id: string, authUser?: AuthContextUser): Promise<{
+        clientName: string;
+        clientPhone: string | null;
+        phone: string | null;
         notes: string | null;
         paidAmount: number;
         remainingAmount: number;
@@ -371,6 +385,9 @@ export declare class InvoicesService {
         pointsRedeemed: number;
     }>;
     updateInvoice(id: string, data: UpdateInvoiceInput, authUser: AuthContextUser): Promise<{
+        clientName: string;
+        clientPhone: string | null;
+        phone: string | null;
         notes: string | null;
         paidAmount: number;
         remainingAmount: number;

@@ -159,6 +159,20 @@ class CommissionsController {
             next(error);
         }
     }
+    async getMarketerPerformance(req, res, next) {
+        try {
+            const marketerId = (req.params.marketerId || req.user?.id);
+            const authUser = req.user;
+            const result = await commissions_service_1.commissionsService.getMarketerPerformance(marketerId, authUser);
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                data: result,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
 }
 exports.CommissionsController = CommissionsController;
 exports.commissionsController = new CommissionsController();
