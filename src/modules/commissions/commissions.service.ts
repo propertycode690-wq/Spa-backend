@@ -77,9 +77,14 @@ export class CommissionsService {
       const sName = item.name.toLowerCase();
 
       // Service-wise commission rate determination:
-      // Check database rule first, then standard category defaults
+      // Priority 1: Technician's individual contracted rate (staffProfile.commissionRate)
+      // Priority 2: Active category rule from CommissionRule table (ruleMap)
+      // Priority 3: Standard category defaults (Nails 15%, Facial 12%, Massage 10%, Default 10%)
+      const techProfileRate = Number(item.technician?.staffProfile?.commissionRate || 0);
       let rate = 10; // default 10%
-      if (ruleMap.has(category)) {
+      if (techProfileRate > 0) {
+        rate = techProfileRate;
+      } else if (ruleMap.has(category)) {
         rate = ruleMap.get(category)!;
       } else if (category.includes('nail') || sName.includes('nail')) {
         rate = 15; // Nails: 15%

@@ -314,6 +314,42 @@ assert(res5.technicians[0].referralDeduction === 100, 'Deduction is capped at te
 assert(res5.technicians[0].netCommission === 0, 'Technician net commission never drops below 0 FCFA');
 
 // ---------------------------------------------------------------------
+// SCENARIO 6: Fully Dynamic Custom Rates (e.g., Tech 20%, Marketer 3%)
+// ---------------------------------------------------------------------
+console.log('\n--- SCENARIO 6: Fully Dynamic Custom Rates (Tech 20%, Marketer 3%) ---');
+const customMarketer: MarketerContract = {
+  name: 'VIP Marketer David',
+  flatAcquisitionFee: 2500, // Custom 2,500 FCFA bounty
+  lifetimeCommissionRate: 3.5, // Custom 3.5% negotiated rate
+};
+
+const customItems: ServiceItem[] = [
+  {
+    serviceName: 'Premium Bridal Package',
+    category: 'Special',
+    price: 50000,
+    quantity: 1,
+    technicianName: 'Senior Master Stylist',
+    technicianRate: 20, // 20% technician rate
+  },
+];
+
+const res6 = calculateInvoiceCommission(customItems, true, customMarketer);
+console.log(`Service Price: 50,000 FCFA`);
+console.log(`Technician Gross (20%): ${res6.technicians[0].grossCommission} FCFA`);
+console.log(`Marketer Deduction (-3.5%): -${res6.technicians[0].referralDeduction} FCFA`);
+console.log(`Technician Net Commission (16.5%): ${res6.technicians[0].netCommission} FCFA`);
+console.log(`Marketer Total Payout (2,500 Bounty + 1,750 %): ${res6.marketer?.totalPayout} FCFA`);
+
+assert(res6.technicians[0].grossCommission === 10000, 'Senior Tech gross is 20% of 50,000 = 10,000 FCFA');
+assert(res6.technicians[0].referralDeduction === 1750, 'Marketer deduction is 3.5% of 50,000 = 1,750 FCFA');
+assert(res6.technicians[0].netCommission === 8250, 'Technician net commission is 10,000 - 1,750 = 8,250 FCFA (16.5%)');
+assert(res6.marketer?.bounty === 2500, 'Custom bounty is 2,500 FCFA');
+assert(res6.marketer?.lifetimePercentageEarned === 1750, 'Marketer custom 3.5% is 1,750 FCFA');
+assert(res6.marketer?.totalPayout === 4250, 'Marketer total payout = 2,500 + 1,750 = 4,250 FCFA');
+assert(res6.summary.isOwnerServiceNeutral, 'Spa Owner service payout remains neutral (8,250 + 1,750 = 10,000 FCFA)');
+
+// ---------------------------------------------------------------------
 // SUMMARY
 // ---------------------------------------------------------------------
 console.log('\n================================================================');
@@ -324,3 +360,4 @@ if (passedTests === totalTests) {
   console.log('STATUS: [SOME TESTS FAILED]');
 }
 console.log('================================================================\n');
+
