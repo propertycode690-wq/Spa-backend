@@ -191,12 +191,18 @@ export declare const addInvoiceItemSchema: z.ZodObject<{
 export declare const updateInvoiceSchema: z.ZodObject<{
     discount: z.ZodOptional<z.ZodNumber>;
     status: z.ZodOptional<z.ZodEnum<["DRAFT", "PENDING_PAYMENT"]>>;
+    pointsRedeemed: z.ZodOptional<z.ZodNumber>;
+    pointsEarned: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     status?: "DRAFT" | "PENDING_PAYMENT" | undefined;
     discount?: number | undefined;
+    pointsEarned?: number | undefined;
+    pointsRedeemed?: number | undefined;
 }, {
     status?: "DRAFT" | "PENDING_PAYMENT" | undefined;
     discount?: number | undefined;
+    pointsEarned?: number | undefined;
+    pointsRedeemed?: number | undefined;
 }>;
 export declare const invoiceQuerySchema: z.ZodObject<{
     status: z.ZodOptional<z.ZodNativeEnum<{

@@ -64,6 +64,8 @@ exports.addInvoiceItemSchema = zod_1.z.object({
 exports.updateInvoiceSchema = zod_1.z.object({
     discount: zod_1.z.number().nonnegative('Discount cannot be negative').optional(),
     status: zod_1.z.enum([client_1.InvoiceStatus.DRAFT, client_1.InvoiceStatus.PENDING_PAYMENT]).optional(),
+    pointsRedeemed: zod_1.z.number().int().nonnegative().optional(),
+    pointsEarned: zod_1.z.number().int().nonnegative().optional(),
 });
 exports.invoiceQuerySchema = zod_1.z.object({
     status: zod_1.z.nativeEnum(client_1.InvoiceStatus).optional(),

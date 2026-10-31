@@ -37,6 +37,8 @@ export interface AddInvoiceItemInput {
 export interface UpdateInvoiceInput {
   discount?: number;
   status?: InvoiceStatus;
+  pointsRedeemed?: number;
+  pointsEarned?: number;
 }
 
 export interface InvoiceQueryFilter {

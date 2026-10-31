@@ -838,6 +838,12 @@ export class InvoicesService {
       updateData.discount = data.discount;
       updateData.total = Math.max(0, Number(invoice.subtotal) - data.discount);
     }
+    if (data.pointsRedeemed !== undefined) {
+      updateData.pointsRedeemed = Number(data.pointsRedeemed);
+    }
+    if (data.pointsEarned !== undefined) {
+      updateData.pointsEarned = Number(data.pointsEarned);
+    }
 
     const updated = await prisma.invoice.update({
       where: { id },
