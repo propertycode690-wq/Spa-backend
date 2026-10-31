@@ -580,7 +580,14 @@ class InvoicesService {
                 orderBy: { createdAt: 'desc' },
                 include: {
                     client: {
-                        select: { id: true, name: true, phone: true, whatsapp: true, quartier: true },
+                        select: {
+                            id: true,
+                            name: true,
+                            phone: true,
+                            whatsapp: true,
+                            quartier: true,
+                            loyalty: { select: { balance: true } },
+                        },
                     },
                     appointment: {
                         select: {
@@ -619,6 +626,12 @@ class InvoicesService {
             const remainingAmount = Math.max(0, Number(inv.total) - paidAmount);
             return {
                 ...inv,
+                client: inv.client
+                    ? {
+                        ...inv.client,
+                        loyaltyPoints: inv.client.loyalty?.balance ?? 0,
+                    }
+                    : null,
                 clientName: inv.client?.name || inv.clientName || 'Walk in',
                 clientPhone: inv.clientPhone || inv.client?.phone || inv.client?.whatsapp || null,
                 phone: inv.clientPhone || inv.client?.phone || inv.client?.whatsapp || null,
@@ -645,7 +658,14 @@ class InvoicesService {
             where: { id },
             include: {
                 client: {
-                    select: { id: true, name: true, phone: true, whatsapp: true, quartier: true },
+                    select: {
+                        id: true,
+                        name: true,
+                        phone: true,
+                        whatsapp: true,
+                        quartier: true,
+                        loyalty: { select: { balance: true } },
+                    },
                 },
                 appointment: {
                     select: {
@@ -701,6 +721,12 @@ class InvoicesService {
         const remainingAmount = Math.max(0, Number(invoice.total) - paidAmount);
         return {
             ...invoice,
+            client: invoice.client
+                ? {
+                    ...invoice.client,
+                    loyaltyPoints: invoice.client.loyalty?.balance ?? 0,
+                }
+                : null,
             clientName: invoice.client?.name || invoice.clientName || 'Walk in',
             clientPhone: invoice.clientPhone || invoice.client?.phone || invoice.client?.whatsapp || null,
             phone: invoice.clientPhone || invoice.client?.phone || invoice.client?.whatsapp || null,
