@@ -302,6 +302,7 @@ export class WhatsAppService {
         templateLanguage ||
         ([
           'client_welcome',
+          'appointment_booking_confirmation',
           'appointment_reminder',
           'appointment_reminder_2h',
           'payment_confirmation_',
@@ -985,22 +986,48 @@ export class WhatsAppService {
 
     const idempotencyKey = `appt-confirm:${appointmentId}`;
 
-    return this.dispatchMessage({
+    const confirmationVariables = [
+      client.name || 'Valued Guest',
+      appointmentDate,
+      appointmentTime,
+      serviceNames,
+      technicianName,
+    ];
+
+    const dispatchRes = await this.dispatchMessage({
       recipientPhone: phone,
       message: `Hello ${client.name}, your appointment at OMEGA SPA is confirmed for ${appointmentDate} at ${appointmentTime} for ${serviceNames} with ${technicianName}. See you soon!`,
       idempotencyKey,
       automationType: WhatsAppAutomationType.APPOINTMENT_REMINDER,
       clientId: client.id,
       appointmentId: appointment.id,
-      templateName: 'appointment_reminder',
+      templateName: 'appointment_booking_confirmation',
       templateLanguage: 'en',
-      templateVariables: [
-        client.name || 'Valued Guest',
-        appointmentTime,
-        serviceNames,
-        technicianName,
-      ],
+      templateVariables: confirmationVariables,
     });
+
+    // If the new appointment_booking_confirmation template is still PENDING Meta approval, fallback temporarily
+    if (dispatchRes.log?.status === 'FAILED' && dispatchRes.log.failureReason?.toLowerCase().includes('pending')) {
+      logger.warn('[WhatsApp] appointment_booking_confirmation is still pending Meta approval. Using appointment_reminder fallback temporarily.');
+      return this.dispatchMessage({
+        recipientPhone: phone,
+        message: `Hello ${client.name}, your appointment at OMEGA SPA is confirmed for ${appointmentDate} at ${appointmentTime} for ${serviceNames} with ${technicianName}. See you soon!`,
+        idempotencyKey: `appt-confirm-fb:${appointmentId}`,
+        automationType: WhatsAppAutomationType.APPOINTMENT_REMINDER,
+        clientId: client.id,
+        appointmentId: appointment.id,
+        templateName: 'appointment_reminder',
+        templateLanguage: 'en',
+        templateVariables: [
+          client.name || 'Valued Guest',
+          appointmentTime,
+          serviceNames,
+          technicianName,
+        ],
+      });
+    }
+
+    return dispatchRes;
   }
 
   /**
