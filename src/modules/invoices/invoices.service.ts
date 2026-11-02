@@ -18,6 +18,7 @@ export class InvoicesService {
     const hasServices = Boolean(data.services && data.services.length > 0);
     const isRetailOnly = !data.appointmentId && !hasServices;
     let appointment: any = null;
+    let existingInvoice: any = null;
     let billableServices: any[] = [];
     let subtotal = 0;
 
@@ -42,35 +43,45 @@ export class InvoicesService {
         throw new AppError('Appointment not found', HTTP_STATUS.NOT_FOUND);
       }
 
-      // 2. Prevent duplicate invoice for same appointment
-      const existingInvoice = await prisma.invoice.findUnique({
+      // 2. Prevent duplicate invoice for same appointment (allow updating if still unpaid and new services provided)
+      existingInvoice = await prisma.invoice.findUnique({
         where: { appointmentId: data.appointmentId! },
+        include: { items: true },
       });
 
       if (existingInvoice) {
-        throw new AppError('Invoice already exists for this appointment', HTTP_STATUS.CONFLICT);
+        if (existingInvoice.status === InvoiceStatus.PAID) {
+          throw new AppError('Invoice already exists and is paid for this appointment', HTTP_STATUS.CONFLICT);
+        }
+        if (!hasServices && (!data.retailProducts || data.retailProducts.length === 0)) {
+          throw new AppError('Invoice already exists for this appointment', HTTP_STATUS.CONFLICT);
+        }
       }
 
-      // 3. Create invoice from non-cancelled appointment services
-      billableServices = appointment.appointmentServices.filter(
-        (s: any) => s.status === AppointmentServiceStatus.COMPLETED
-      );
-
-      if (billableServices.length === 0) {
+      // 3. Determine billable services & subtotal (use explicitly provided services from Shared Work / Close Service if available)
+      if (hasServices) {
+        subtotal = data.services!.reduce((sum, s) => sum + (Number(s.price) || 0) * (s.quantity || 1), 0);
+      } else {
         billableServices = appointment.appointmentServices.filter(
-          (s: any) => s.status !== AppointmentServiceStatus.CANCELLED
+          (s: any) => s.status === AppointmentServiceStatus.COMPLETED
         );
-      }
 
-      if (billableServices.length === 0 && (!data.retailProducts || data.retailProducts.length === 0)) {
-        throw new AppError(
-          'Cannot create invoice: no billable appointment services found for this visit',
-          HTTP_STATUS.BAD_REQUEST
-        );
-      }
+        if (billableServices.length === 0) {
+          billableServices = appointment.appointmentServices.filter(
+            (s: any) => s.status !== AppointmentServiceStatus.CANCELLED
+          );
+        }
 
-      // Calculate subtotal from billable services
-      subtotal = billableServices.reduce((sum, s) => sum + Number(s.price), 0);
+        if (billableServices.length === 0 && (!data.retailProducts || data.retailProducts.length === 0)) {
+          throw new AppError(
+            'Cannot create invoice: no billable appointment services found for this visit',
+            HTTP_STATUS.BAD_REQUEST
+          );
+        }
+
+        // Calculate subtotal from billable services
+        subtotal = billableServices.reduce((sum, s) => sum + Number(s.price), 0);
+      }
     } else if (hasServices) {
       subtotal = data.services!.reduce((sum, s) => sum + (Number(s.price) || 0) * (s.quantity || 1), 0);
     } else {
@@ -182,20 +193,38 @@ export class InvoicesService {
             // Walk-in customers must never be added to the /clients directory!
           }
 
-          const created = await tx.invoice.create({
-            data: {
-              appointmentId: appointment ? appointment.id : null,
-              clientId: targetClientId,
-              clientName: cleanName || (targetClientId ? null : 'Walk in'),
-              clientPhone: cleanPhone || null,
-              invoiceNumber,
-              date: dateObj,
-              status: invoiceStatus,
-              subtotal: combinedSubtotal,
-              discount,
-              total,
-            },
-          });
+          let created: any;
+          if (existingInvoice) {
+            // Delete existing invoice items so updated services from Shared Work / Close Service replace them
+            await tx.invoiceItem.deleteMany({
+              where: { invoiceId: existingInvoice.id },
+            });
+
+            created = await tx.invoice.update({
+              where: { id: existingInvoice.id },
+              data: {
+                subtotal: combinedSubtotal,
+                discount,
+                total,
+                status: invoiceStatus,
+              },
+            });
+          } else {
+            created = await tx.invoice.create({
+              data: {
+                appointmentId: appointment ? appointment.id : null,
+                clientId: targetClientId,
+                clientName: cleanName || (targetClientId ? null : 'Walk in'),
+                clientPhone: cleanPhone || null,
+                invoiceNumber,
+                date: dateObj,
+                status: invoiceStatus,
+                subtotal: combinedSubtotal,
+                discount,
+                total,
+              },
+            });
+          }
 
           if (appointment) {
             // Ensure billed appointment services and appointment are marked COMPLETED
@@ -212,23 +241,75 @@ export class InvoicesService {
 
             await tx.appointment.update({
               where: { id: appointment.id },
-              data: { status: AppointmentStatus.COMPLETED },
+              data: {
+                status: AppointmentStatus.COMPLETED,
+                ...(hasServices
+                  ? { serviceSummary: data.services!.map((s) => s.name || s.service).filter(Boolean).join(', ') }
+                  : {}),
+              },
             });
 
-            // Snapshot service items
-            for (const s of billableServices) {
-              await tx.invoiceItem.create({
-                data: {
-                  invoiceId: created.id,
-                  appointmentServiceId: s.id,
-                  serviceId: s.serviceId,
-                  technicianId: s.technicianId || appointment?.mainTechnicianId || null,
-                  itemType: InvoiceItemType.SERVICE,
-                  name: s.service?.name || 'Spa Service',
-                  price: s.price,
-                  quantity: 1,
-                },
-              });
+            if (hasServices) {
+              // Snapshot explicitly provided services (Shared Work / updated performed services)
+              for (const s of data.services!) {
+                let validServiceId: string | null = null;
+                if (s.serviceId) {
+                  const svcExists = await tx.service.findUnique({
+                    where: { id: s.serviceId },
+                    select: { id: true },
+                  });
+                  if (svcExists) validServiceId = svcExists.id;
+                }
+
+                let validTechId: string | null = null;
+                const candTechId =
+                  s.technicianId ||
+                  appointment.mainTechnicianId ||
+                  (String(authUser?.role).toUpperCase() === 'TECHNICIAN' ? authUser.id : null);
+                if (candTechId) {
+                  const userExists = await tx.user.findUnique({
+                    where: { id: candTechId },
+                    select: { id: true },
+                  });
+                  if (userExists) validTechId = userExists.id;
+                }
+
+                // Check if there is an existing appointmentService for this service
+                const existingApptSvc = appointment.appointmentServices.find(
+                  (asvc: any) =>
+                    asvc.serviceId === validServiceId ||
+                    (asvc.service?.name && (s.name || s.service) && asvc.service.name.toLowerCase() === (s.name || s.service)!.toLowerCase())
+                );
+
+                await tx.invoiceItem.create({
+                  data: {
+                    invoiceId: created.id,
+                    appointmentServiceId: existingApptSvc ? existingApptSvc.id : null,
+                    serviceId: validServiceId,
+                    technicianId: validTechId,
+                    itemType: InvoiceItemType.SERVICE,
+                    name: s.name || s.service || 'Spa Service',
+                    price: Number(s.price || 0),
+                    quantity: s.quantity || 1,
+                  },
+                });
+              }
+            } else {
+              // Fallback: Snapshot service items from billableServices
+              for (const s of billableServices) {
+                await tx.invoiceItem.create({
+                  data: {
+                    invoiceId: created.id,
+                    appointmentServiceId: s.id,
+                    serviceId: s.serviceId,
+                    technicianId: s.technicianId || appointment?.mainTechnicianId || null,
+                    itemType: InvoiceItemType.SERVICE,
+                    name: s.service?.name || 'Spa Service',
+                    price: s.price,
+                    quantity: 1,
+                  },
+                });
+              }
             }
           } else if (data.services && data.services.length > 0) {
             // Snapshot direct walk-in service items with defensive FK verification
@@ -293,7 +374,7 @@ export class InvoicesService {
 
           // Log ClientHistory if client linked
           if (targetClientId) {
-            const totalItems = billableServices.length + retailItemsToCreate.length;
+            const totalItems = (hasServices ? data.services!.length : billableServices.length) + retailItemsToCreate.length;
             await tx.clientHistory.create({
               data: {
                 clientId: targetClientId,
