@@ -73,6 +73,22 @@ class PaymentsService {
                         data: { lastVisitAt: new Date() },
                     });
                 }
+                else if (invoice.clientPhone) {
+                    const matchedClient = await tx.client.findFirst({
+                        where: {
+                            OR: [
+                                { phone: invoice.clientPhone },
+                                { whatsapp: invoice.clientPhone },
+                            ],
+                        },
+                    });
+                    if (matchedClient) {
+                        await tx.client.update({
+                            where: { id: matchedClient.id },
+                            data: { lastVisitAt: new Date() },
+                        });
+                    }
+                }
             }
             // Log payment activity in ClientHistory
             if (invoice.clientId) {

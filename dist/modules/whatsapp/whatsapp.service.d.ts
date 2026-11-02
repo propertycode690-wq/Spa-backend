@@ -278,7 +278,7 @@ export declare class WhatsAppService {
     }>;
     /**
      * Process Rebooking Reminders Batch
-     * Strictly targets clients with completed visits >= 30 days ago and NO upcoming bookings.
+     * Strictly targets clients with completed visits >= 30 days ago, NO recent visits, NO recent invoices, and NO upcoming bookings.
      */
     processRebookingReminders(clientId?: string): Promise<{
         processedCount: number;

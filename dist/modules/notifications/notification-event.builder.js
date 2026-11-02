@@ -316,22 +316,42 @@ class NotificationEventBuilder {
             where: { id: clientId },
             include: {
                 appointments: {
-                    where: { status: 'COMPLETED' },
+                    where: { status: { not: 'CANCELLED' } },
                     orderBy: { appointmentDate: 'desc' },
-                    take: 1,
+                    take: 10,
+                },
+                invoices: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 10,
                 },
             },
         });
         if (!client)
             throw new errorHandler_1.AppError('Client not found', constants_1.HTTP_STATUS.NOT_FOUND);
         const now = new Date();
-        const lastVisit = client.lastVisitAt || (client.appointments[0] ? client.appointments[0].appointmentDate : null);
-        if (!lastVisit) {
+        const candidateTimes = [];
+        if (client.lastVisitAt) {
+            candidateTimes.push(new Date(client.lastVisitAt).getTime());
+        }
+        for (const appt of (client.appointments || [])) {
+            if (appt.appointmentDate)
+                candidateTimes.push(new Date(appt.appointmentDate).getTime());
+            if (appt.createdAt)
+                candidateTimes.push(new Date(appt.createdAt).getTime());
+        }
+        for (const inv of (client.invoices || [])) {
+            if (inv.date)
+                candidateTimes.push(new Date(inv.date).getTime());
+            if (inv.createdAt)
+                candidateTimes.push(new Date(inv.createdAt).getTime());
+        }
+        if (candidateTimes.length === 0) {
             throw new errorHandler_1.AppError(`Client ${client.name} has no recorded past visits. Rebooking reminder requires at least 1 completed visit.`, constants_1.HTTP_STATUS.BAD_REQUEST);
         }
-        const daysInactive = Math.floor((now.getTime() - new Date(lastVisit).getTime()) / (1000 * 60 * 60 * 24));
+        const mostRecentActivityTime = Math.max(...candidateTimes);
+        const daysInactive = Math.floor((now.getTime() - mostRecentActivityTime) / (1000 * 60 * 60 * 24));
         if (daysInactive < 30) {
-            throw new errorHandler_1.AppError(`Client ${client.name} is not eligible for rebooking: last visit was only ${daysInactive} days ago (minimum 30 days required).`, constants_1.HTTP_STATUS.BAD_REQUEST);
+            throw new errorHandler_1.AppError(`Client ${client.name} is not eligible for rebooking: last visit or activity was only ${Math.max(0, daysInactive)} days ago (minimum 30 days required).`, constants_1.HTTP_STATUS.BAD_REQUEST);
         }
         const rawPhone = client.phone || client.whatsapp || '';
         const cleanPhone = rawPhone.replace(/\D/g, '');

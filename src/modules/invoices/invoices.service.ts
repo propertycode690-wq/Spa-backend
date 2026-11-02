@@ -249,6 +249,13 @@ export class InvoicesService {
               },
             });
 
+            if (appointment.clientId) {
+              await tx.client.update({
+                where: { id: appointment.clientId },
+                data: { lastVisitAt: new Date() },
+              });
+            }
+
             if (hasServices) {
               // Snapshot explicitly provided services (Shared Work / updated performed services)
               for (const s of data.services!) {
@@ -372,8 +379,12 @@ export class InvoicesService {
             });
           }
 
-          // Log ClientHistory if client linked
+          // Log ClientHistory if client linked & update lastVisitAt
           if (targetClientId) {
+            await tx.client.update({
+              where: { id: targetClientId },
+              data: { lastVisitAt: new Date() },
+            });
             const totalItems = (hasServices ? data.services!.length : billableServices.length) + retailItemsToCreate.length;
             await tx.clientHistory.create({
               data: {
@@ -934,6 +945,12 @@ export class InvoicesService {
     if (data.status === InvoiceStatus.PAID) {
       await commissionsService.generateCommissionsForInvoice(updated.id);
       await loyaltyService.awardPointsForInvoice(updated.id);
+      if (invoice.clientId) {
+        await prisma.client.update({
+          where: { id: invoice.clientId },
+          data: { lastVisitAt: new Date() },
+        });
+      }
     }
 
     if (invoice.clientId) {

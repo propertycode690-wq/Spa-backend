@@ -678,17 +678,20 @@ export class ReportsService {
     let active = 0;
 
     for (const c of allClients) {
-      // Determine last visit
-      let lastVisit = c.lastVisitAt;
-      if (!lastVisit && c.appointments.length > 0 && c.appointments[0].status === AppointmentStatus.COMPLETED) {
-        lastVisit = c.appointments[0].appointmentDate;
+      // Determine last visit across lastVisitAt and appointments
+      let lastVisitTime = c.lastVisitAt ? new Date(c.lastVisitAt).getTime() : 0;
+      if (c.appointments.length > 0 && c.appointments[0].status === AppointmentStatus.COMPLETED) {
+        const apptTime = new Date(c.appointments[0].appointmentDate).getTime();
+        if (apptTime > lastVisitTime) {
+          lastVisitTime = apptTime;
+        }
       }
 
-      if (!lastVisit) {
+      if (!lastVisitTime) {
         continue; // Client never visited
       }
 
-      const diffMs = now.getTime() - new Date(lastVisit).getTime();
+      const diffMs = now.getTime() - lastVisitTime;
       const days = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
       if (days >= 90) {

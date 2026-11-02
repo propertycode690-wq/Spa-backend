@@ -16,6 +16,7 @@ class InvoicesService {
         const hasServices = Boolean(data.services && data.services.length > 0);
         const isRetailOnly = !data.appointmentId && !hasServices;
         let appointment = null;
+        let existingInvoice = null;
         let billableServices = [];
         let subtotal = 0;
         if (data.appointmentId) {
@@ -37,23 +38,34 @@ class InvoicesService {
             if (!appointment) {
                 throw new errorHandler_1.AppError('Appointment not found', constants_1.HTTP_STATUS.NOT_FOUND);
             }
-            // 2. Prevent duplicate invoice for same appointment
-            const existingInvoice = await database_1.default.invoice.findUnique({
+            // 2. Prevent duplicate invoice for same appointment (allow updating if still unpaid and new services provided)
+            existingInvoice = await database_1.default.invoice.findUnique({
                 where: { appointmentId: data.appointmentId },
+                include: { items: true },
             });
             if (existingInvoice) {
-                throw new errorHandler_1.AppError('Invoice already exists for this appointment', constants_1.HTTP_STATUS.CONFLICT);
+                if (existingInvoice.status === client_1.InvoiceStatus.PAID) {
+                    throw new errorHandler_1.AppError('Invoice already exists and is paid for this appointment', constants_1.HTTP_STATUS.CONFLICT);
+                }
+                if (!hasServices && (!data.retailProducts || data.retailProducts.length === 0)) {
+                    throw new errorHandler_1.AppError('Invoice already exists for this appointment', constants_1.HTTP_STATUS.CONFLICT);
+                }
             }
-            // 3. Create invoice from non-cancelled appointment services
-            billableServices = appointment.appointmentServices.filter((s) => s.status === client_1.AppointmentServiceStatus.COMPLETED);
-            if (billableServices.length === 0) {
-                billableServices = appointment.appointmentServices.filter((s) => s.status !== client_1.AppointmentServiceStatus.CANCELLED);
+            // 3. Determine billable services & subtotal (use explicitly provided services from Shared Work / Close Service if available)
+            if (hasServices) {
+                subtotal = data.services.reduce((sum, s) => sum + (Number(s.price) || 0) * (s.quantity || 1), 0);
             }
-            if (billableServices.length === 0 && (!data.retailProducts || data.retailProducts.length === 0)) {
-                throw new errorHandler_1.AppError('Cannot create invoice: no billable appointment services found for this visit', constants_1.HTTP_STATUS.BAD_REQUEST);
+            else {
+                billableServices = appointment.appointmentServices.filter((s) => s.status === client_1.AppointmentServiceStatus.COMPLETED);
+                if (billableServices.length === 0) {
+                    billableServices = appointment.appointmentServices.filter((s) => s.status !== client_1.AppointmentServiceStatus.CANCELLED);
+                }
+                if (billableServices.length === 0 && (!data.retailProducts || data.retailProducts.length === 0)) {
+                    throw new errorHandler_1.AppError('Cannot create invoice: no billable appointment services found for this visit', constants_1.HTTP_STATUS.BAD_REQUEST);
+                }
+                // Calculate subtotal from billable services
+                subtotal = billableServices.reduce((sum, s) => sum + Number(s.price), 0);
             }
-            // Calculate subtotal from billable services
-            subtotal = billableServices.reduce((sum, s) => sum + Number(s.price), 0);
         }
         else if (hasServices) {
             subtotal = data.services.reduce((sum, s) => sum + (Number(s.price) || 0) * (s.quantity || 1), 0);
@@ -145,20 +157,38 @@ class InvoicesService {
                         // IMPORTANT: If NOT found, DO NOT create a Client profile!
                         // Walk-in customers must never be added to the /clients directory!
                     }
-                    const created = await tx.invoice.create({
-                        data: {
-                            appointmentId: appointment ? appointment.id : null,
-                            clientId: targetClientId,
-                            clientName: cleanName || (targetClientId ? null : 'Walk in'),
-                            clientPhone: cleanPhone || null,
-                            invoiceNumber,
-                            date: dateObj,
-                            status: invoiceStatus,
-                            subtotal: combinedSubtotal,
-                            discount,
-                            total,
-                        },
-                    });
+                    let created;
+                    if (existingInvoice) {
+                        // Delete existing invoice items so updated services from Shared Work / Close Service replace them
+                        await tx.invoiceItem.deleteMany({
+                            where: { invoiceId: existingInvoice.id },
+                        });
+                        created = await tx.invoice.update({
+                            where: { id: existingInvoice.id },
+                            data: {
+                                subtotal: combinedSubtotal,
+                                discount,
+                                total,
+                                status: invoiceStatus,
+                            },
+                        });
+                    }
+                    else {
+                        created = await tx.invoice.create({
+                            data: {
+                                appointmentId: appointment ? appointment.id : null,
+                                clientId: targetClientId,
+                                clientName: cleanName || (targetClientId ? null : 'Walk in'),
+                                clientPhone: cleanPhone || null,
+                                invoiceNumber,
+                                date: dateObj,
+                                status: invoiceStatus,
+                                subtotal: combinedSubtotal,
+                                discount,
+                                total,
+                            },
+                        });
+                    }
                     if (appointment) {
                         // Ensure billed appointment services and appointment are marked COMPLETED
                         await tx.appointmentService.updateMany({
@@ -173,22 +203,76 @@ class InvoicesService {
                         });
                         await tx.appointment.update({
                             where: { id: appointment.id },
-                            data: { status: client_1.AppointmentStatus.COMPLETED },
+                            data: {
+                                status: client_1.AppointmentStatus.COMPLETED,
+                                ...(hasServices
+                                    ? { serviceSummary: data.services.map((s) => s.name || s.service).filter(Boolean).join(', ') }
+                                    : {}),
+                            },
                         });
-                        // Snapshot service items
-                        for (const s of billableServices) {
-                            await tx.invoiceItem.create({
-                                data: {
-                                    invoiceId: created.id,
-                                    appointmentServiceId: s.id,
-                                    serviceId: s.serviceId,
-                                    technicianId: s.technicianId || appointment?.mainTechnicianId || null,
-                                    itemType: client_1.InvoiceItemType.SERVICE,
-                                    name: s.service?.name || 'Spa Service',
-                                    price: s.price,
-                                    quantity: 1,
-                                },
+                        if (appointment.clientId) {
+                            await tx.client.update({
+                                where: { id: appointment.clientId },
+                                data: { lastVisitAt: new Date() },
                             });
+                        }
+                        if (hasServices) {
+                            // Snapshot explicitly provided services (Shared Work / updated performed services)
+                            for (const s of data.services) {
+                                let validServiceId = null;
+                                if (s.serviceId) {
+                                    const svcExists = await tx.service.findUnique({
+                                        where: { id: s.serviceId },
+                                        select: { id: true },
+                                    });
+                                    if (svcExists)
+                                        validServiceId = svcExists.id;
+                                }
+                                let validTechId = null;
+                                const candTechId = s.technicianId ||
+                                    appointment.mainTechnicianId ||
+                                    (String(authUser?.role).toUpperCase() === 'TECHNICIAN' ? authUser.id : null);
+                                if (candTechId) {
+                                    const userExists = await tx.user.findUnique({
+                                        where: { id: candTechId },
+                                        select: { id: true },
+                                    });
+                                    if (userExists)
+                                        validTechId = userExists.id;
+                                }
+                                // Check if there is an existing appointmentService for this service
+                                const existingApptSvc = appointment.appointmentServices.find((asvc) => asvc.serviceId === validServiceId ||
+                                    (asvc.service?.name && (s.name || s.service) && asvc.service.name.toLowerCase() === (s.name || s.service).toLowerCase()));
+                                await tx.invoiceItem.create({
+                                    data: {
+                                        invoiceId: created.id,
+                                        appointmentServiceId: existingApptSvc ? existingApptSvc.id : null,
+                                        serviceId: validServiceId,
+                                        technicianId: validTechId,
+                                        itemType: client_1.InvoiceItemType.SERVICE,
+                                        name: s.name || s.service || 'Spa Service',
+                                        price: Number(s.price || 0),
+                                        quantity: s.quantity || 1,
+                                    },
+                                });
+                            }
+                        }
+                        else {
+                            // Fallback: Snapshot service items from billableServices
+                            for (const s of billableServices) {
+                                await tx.invoiceItem.create({
+                                    data: {
+                                        invoiceId: created.id,
+                                        appointmentServiceId: s.id,
+                                        serviceId: s.serviceId,
+                                        technicianId: s.technicianId || appointment?.mainTechnicianId || null,
+                                        itemType: client_1.InvoiceItemType.SERVICE,
+                                        name: s.service?.name || 'Spa Service',
+                                        price: s.price,
+                                        quantity: 1,
+                                    },
+                                });
+                            }
                         }
                     }
                     else if (data.services && data.services.length > 0) {
@@ -244,14 +328,18 @@ class InvoicesService {
                                 amount: total,
                                 paymentMethod: data.paymentMethod,
                                 receivedById: authUser.id,
-                                paidAt: dateObj,
+                                paidAt: new Date(),
                                 notes: isRetailOnly ? 'Retail sale paid at reception' : 'Invoice payment recorded',
                             },
                         });
                     }
-                    // Log ClientHistory if client linked
+                    // Log ClientHistory if client linked & update lastVisitAt
                     if (targetClientId) {
-                        const totalItems = billableServices.length + retailItemsToCreate.length;
+                        await tx.client.update({
+                            where: { id: targetClientId },
+                            data: { lastVisitAt: new Date() },
+                        });
+                        const totalItems = (hasServices ? data.services.length : billableServices.length) + retailItemsToCreate.length;
                         await tx.clientHistory.create({
                             data: {
                                 clientId: targetClientId,
@@ -763,6 +851,12 @@ class InvoicesService {
         if (data.status === client_1.InvoiceStatus.PAID) {
             await commissions_service_1.commissionsService.generateCommissionsForInvoice(updated.id);
             await loyalty_service_1.loyaltyService.awardPointsForInvoice(updated.id);
+            if (invoice.clientId) {
+                await database_1.default.client.update({
+                    where: { id: invoice.clientId },
+                    data: { lastVisitAt: new Date() },
+                });
+            }
         }
         if (invoice.clientId) {
             await database_1.default.clientHistory.create({

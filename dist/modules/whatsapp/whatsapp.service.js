@@ -666,24 +666,33 @@ class WhatsAppService {
      * 6. Rebooking Reminder Trigger with Anti-Spam Guards
      */
     async triggerRebooking(clientId, businessDate = new Date().toISOString().split('T')[0]) {
-        // 1. Fetch client with upcoming appointments check
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        // 1. Fetch client with full appointments and invoices check
         const client = await database_1.default.client.findUnique({
             where: { id: clientId },
             include: {
                 appointments: {
                     where: {
-                        status: { in: [client_1.AppointmentStatus.SCHEDULED, client_1.AppointmentStatus.IN_PROGRESS] },
-                        appointmentDate: { gte: new Date() },
+                        status: { not: client_1.AppointmentStatus.CANCELLED },
                     },
-                    take: 1,
+                    orderBy: { appointmentDate: 'desc' },
+                    take: 10,
+                },
+                invoices: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 10,
                 },
             },
         });
         if (!client) {
             throw new errorHandler_1.AppError('Client not found', constants_1.HTTP_STATUS.NOT_FOUND);
         }
-        // Guard A: Skip if client already has an upcoming appointment scheduled
-        if (client.appointments && client.appointments.length > 0) {
+        // Guard A1: Skip if client already has an active upcoming appointment scheduled (today or future)
+        const hasActiveUpcoming = (client.appointments || []).some((a) => (a.status === client_1.AppointmentStatus.SCHEDULED || a.status === client_1.AppointmentStatus.IN_PROGRESS) &&
+            new Date(a.appointmentDate).getTime() >= startOfToday.getTime());
+        if (hasActiveUpcoming) {
             logger_1.logger.info(`[WhatsApp Rebooking] Skipped client ${client.name} (${clientId}): Already has an active upcoming appointment.`);
             return {
                 alreadySent: true,
@@ -692,8 +701,41 @@ class WhatsAppService {
                 log: { status: 'SKIPPED' },
             };
         }
+        // Guard A2: Skip if client visited or had an appointment within the last 30 days
+        const hasRecentAppointment = (client.appointments || []).some((a) => new Date(a.appointmentDate).getTime() >= thirtyDaysAgo.getTime() ||
+            (a.createdAt && new Date(a.createdAt).getTime() >= thirtyDaysAgo.getTime()));
+        if (hasRecentAppointment) {
+            logger_1.logger.info(`[WhatsApp Rebooking] Skipped client ${client.name} (${clientId}): Has visited or has appointment within the last 30 days.`);
+            return {
+                alreadySent: true,
+                skipped: true,
+                reason: 'Client has visited or has appointment within the last 30 days',
+                log: { status: 'SKIPPED' },
+            };
+        }
+        // Guard A3: Skip if client has an invoice created or dated within the last 30 days
+        const hasRecentInvoice = (client.invoices || []).some((i) => new Date(i.createdAt).getTime() >= thirtyDaysAgo.getTime() ||
+            (i.date && new Date(i.date).getTime() >= thirtyDaysAgo.getTime()));
+        if (hasRecentInvoice) {
+            logger_1.logger.info(`[WhatsApp Rebooking] Skipped client ${client.name} (${clientId}): Has an invoice or payment within the last 30 days.`);
+            return {
+                alreadySent: true,
+                skipped: true,
+                reason: 'Client has an invoice or payment within the last 30 days',
+                log: { status: 'SKIPPED' },
+            };
+        }
+        // Guard A4: Skip if client's lastVisitAt is within the last 30 days
+        if (client.lastVisitAt && new Date(client.lastVisitAt).getTime() >= thirtyDaysAgo.getTime()) {
+            logger_1.logger.info(`[WhatsApp Rebooking] Skipped client ${client.name} (${clientId}): lastVisitAt is within the last 30 days.`);
+            return {
+                alreadySent: true,
+                skipped: true,
+                reason: 'Client lastVisitAt is within the last 30 days',
+                log: { status: 'SKIPPED' },
+            };
+        }
         // Guard B: Check 30-day anti-spam cooldown across WhatsAppMessageLog
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
         const clientPhone = client.phone || client.whatsapp;
         if (clientPhone) {
             const existingRecentLog = await database_1.default.whatsAppMessageLog.findFirst({
@@ -714,7 +756,7 @@ class WhatsAppService {
                 };
             }
         }
-        // 2. Build Event safely (checks >= 30 days threshold)
+        // 2. Build Event safely (checks >= 30 days threshold across all activity)
         let event;
         try {
             event = await notification_event_builder_1.notificationEventBuilder.buildRebookingEvent(clientId, businessDate);
@@ -747,7 +789,7 @@ class WhatsAppService {
     }
     /**
      * Process Rebooking Reminders Batch
-     * Strictly targets clients with completed visits >= 30 days ago and NO upcoming bookings.
+     * Strictly targets clients with completed visits >= 30 days ago, NO recent visits, NO recent invoices, and NO upcoming bookings.
      */
     async processRebookingReminders(clientId) {
         await this.ensureSeededAutomations();
@@ -762,27 +804,31 @@ class WhatsAppService {
             };
         }
         const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-        const now = new Date();
-        // Query clients whose last visit is at least 30 days ago and have NO upcoming appointments
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        // Query clients whose last visit is at least 30 days ago, who have NO recent appointments or invoices
         const inactiveClients = await database_1.default.client.findMany({
             where: {
                 isActive: true,
+                // Must NOT have lastVisitAt within the last 30 days
                 OR: [
                     { lastVisitAt: { lte: thirtyDaysAgo } },
-                    {
-                        lastVisitAt: null,
-                        appointments: {
-                            some: {
-                                status: client_1.AppointmentStatus.COMPLETED,
-                                appointmentDate: { lte: thirtyDaysAgo },
-                            },
-                        },
-                    },
+                    { lastVisitAt: null },
                 ],
+                // Must have at least 1 completed visit in history
                 appointments: {
+                    some: {
+                        status: client_1.AppointmentStatus.COMPLETED,
+                    },
+                    // Must NOT have any appointment within the last 30 days
                     none: {
-                        status: { in: [client_1.AppointmentStatus.SCHEDULED, client_1.AppointmentStatus.IN_PROGRESS] },
-                        appointmentDate: { gte: now },
+                        appointmentDate: { gte: thirtyDaysAgo },
+                    },
+                },
+                // Must NOT have any invoice within the last 30 days
+                invoices: {
+                    none: {
+                        createdAt: { gte: thirtyDaysAgo },
                     },
                 },
             },
