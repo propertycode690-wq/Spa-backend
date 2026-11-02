@@ -366,7 +366,7 @@ export class InvoicesService {
                 amount: total,
                 paymentMethod: data.paymentMethod,
                 receivedById: authUser.id,
-                paidAt: dateObj,
+                paidAt: new Date(),
                 notes: isRetailOnly ? 'Retail sale paid at reception' : 'Invoice payment recorded',
               },
             });
