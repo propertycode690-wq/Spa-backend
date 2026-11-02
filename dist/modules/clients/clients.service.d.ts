@@ -1,4 +1,12 @@
 import { CreateClientInput, UpdateClientInput, AddClientMediaInput, ClientQueryFilter, AuthContextUser } from './clients.types';
+/**
+ * Safely parse a celebration date (Birthday or Anniversary).
+ * Accepts:
+ * - Full date: "1990-05-14", "1990/05/14", ISO string
+ * - Day & Month only: "05-14", "14-05", "14/05", "05/14", etc.
+ * Defaults missing year to 2000 (leap year) so MySQL DATE is valid and Feb 29 is preserved.
+ */
+export declare function parseCelebrationDate(val?: string | null): Date | null;
 export declare class ClientsService {
     createClient(data: CreateClientInput, authUser: AuthContextUser): Promise<{
         introducedByEmployee: {

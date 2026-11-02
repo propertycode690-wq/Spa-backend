@@ -505,16 +505,16 @@ export class LoyaltyService {
     });
 
     const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentDay = now.getDate();
+    const currentMonth = now.getUTCMonth();
+    const currentDay = now.getUTCDate();
 
     const celebrations: any[] = [];
 
     for (const c of clients) {
       if (c.birthday) {
         const bDate = new Date(c.birthday);
-        const bMonth = bDate.getMonth();
-        const bDay = bDate.getDate();
+        const bMonth = bDate.getUTCMonth();
+        const bDay = bDate.getUTCDate();
 
         // Check if celebration falls in the same month or within daysAhead
         if (bMonth === currentMonth) {
@@ -533,8 +533,8 @@ export class LoyaltyService {
 
       if (c.anniversary) {
         const aDate = new Date(c.anniversary);
-        const aMonth = aDate.getMonth();
-        const aDay = aDate.getDate();
+        const aMonth = aDate.getUTCMonth();
+        const aDay = aDate.getUTCDate();
 
         if (aMonth === currentMonth) {
           celebrations.push({
