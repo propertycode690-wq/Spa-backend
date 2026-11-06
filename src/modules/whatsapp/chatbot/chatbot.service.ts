@@ -50,19 +50,8 @@ export class ChatbotService {
 
     let replyText = '';
 
-    // Check if OpenAI API Key is configured
-    if (!this.isConfigured()) {
-      logger.warn('[Chatbot] OPENAI_API_KEY not configured. Sending polite receptionist fallback.');
-      replyText = this.getFallbackGreeting(session.clientName);
-    } else {
-      try {
-        replyText = await this.generateOpenAIResponse(session);
-      } catch (error: any) {
-        logger.error('[Chatbot] Exception calling OpenAI API', { error: error?.message });
-        replyText =
-          "Merci pour votre message à OMEGA SPA ! 🌿 Notre équipe de réception est à votre disposition au +237 6 87 67 32 62 pour toute réservation immédiate.";
-      }
-    }
+    // Currently respond with official OMEGA SPA BONAMOUSADI information greeting as requested
+    replyText = this.getFallbackGreeting(session.clientName);
 
     // Append assistant response to session
     chatbotSessionManager.appendMessage(rawPhone, {
@@ -191,13 +180,18 @@ export class ChatbotService {
    * Friendly fallback greeting when OPENAI_API_KEY is not yet plugged in
    */
   private getFallbackGreeting(clientName?: string): string {
-    const greeting = clientName ? `Bonjour ${clientName}` : 'Bonjour';
+    const greetingHeader = clientName
+      ? `Bonjour ${clientName} et bienvenue chez OMEGA SPA BONAMOUSADI !`
+      : `Bonjour et bienvenue chez OMEGA SPA BONAMOUSADI !`;
+
     return (
-      `🌿 *${greeting} et bienvenue chez OMEGA SPA Douala !*\n\n` +
-      `Notre assistant digital intelligent est en cours d’activation finale.\n\n` +
-      `📍 *Adresse :* Bonapriso, Douala (près de la Rue des Palmiers)\n` +
-      `🕒 *Horaires :* Lun–Sam : 09h00–20h00 | Dim : 12h00–19h00\n` +
-      `📞 *Réservation directe :* +237 6 87 67 32 62\n\n` +
+      `🌿 *${greetingHeader}*\n\n` +
+      `📍 *Adresse :* Round point maetur Bonamousadi, Douala\n\n` +
+      `🕒 *Horaires :*\n\n` +
+      `Lundi–Mardi-Mercredi-Vendredi : 09hr–21hr.\n\n` +
+      `Jeudi : 10hr-21hr.\n\n` +
+      `Dimanche : 11hr–21hr\n\n` +
+      `📞 *Réservation directe :* +237 6 53 14 62 69\n\n` +
       `Notre équipe à la réception vous accueille avec plaisir ! ✨`
     );
   }

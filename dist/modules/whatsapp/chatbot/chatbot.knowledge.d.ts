@@ -15,7 +15,8 @@ export declare const SPA_PROFILE: {
     instagramHandle: string;
     officialPhone: string;
     operatingHours: {
-        monday_to_saturday: string;
+        monday_tuesday_wednesday_friday: string;
+        thursday: string;
         sunday: string;
     };
     acceptedPaymentMethods: string[];

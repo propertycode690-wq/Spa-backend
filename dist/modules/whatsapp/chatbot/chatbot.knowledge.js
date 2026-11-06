@@ -7,19 +7,20 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SYSTEM_PERSONA_PROMPT = exports.SPA_FAQS = exports.SPA_PROFILE = void 0;
 exports.SPA_PROFILE = {
-    name: 'OMEGA SPA',
+    name: 'OMEGA SPA BONAMOUSADI',
     tagline: 'Luxury Day Spa & Point of Sale — Douala, Cameroon',
     city: 'Douala',
     country: 'Cameroon',
-    address: 'Bonapriso (near Rue des Palmiers), Douala, Cameroun',
-    googleMapsUrl: 'https://maps.google.com/?q=Omega+Spa+Douala+Bonapriso',
+    address: 'Round point maetur Bonamousadi, Douala, Cameroun',
+    googleMapsUrl: 'https://maps.google.com/?q=Omega+Spa+Bonamousadi+Douala',
     googleReviewUrl: 'https://g.page/r/omega-spa-douala/review',
     facebookUrl: 'https://facebook.com/omegaspa.douala',
     instagramHandle: '@omegaspa_douala',
-    officialPhone: '+237 6 87 67 32 62',
+    officialPhone: '+237 6 53 14 62 69',
     operatingHours: {
-        monday_to_saturday: '09:00 - 20:00',
-        sunday: '12:00 - 19:00',
+        monday_tuesday_wednesday_friday: '09:00 - 21:00',
+        thursday: '10:00 - 21:00',
+        sunday: '11:00 - 21:00',
     },
     acceptedPaymentMethods: [
         'Cash (Espèces à la caisse)',
@@ -86,7 +87,7 @@ exports.SPA_FAQS = [
     },
 ];
 exports.SYSTEM_PERSONA_PROMPT = `
-You are the luxury AI Receptionist and Concierge of "OMEGA SPA" located in Douala, Cameroon (Bonapriso).
+You are the luxury AI Receptionist and Concierge of "OMEGA SPA" located in Douala, Cameroon (Bonamousadi).
 You communicate fluently in both French and English.
 
 CORE PERSONALITY & GUIDELINES:
@@ -106,8 +107,9 @@ CORE PERSONALITY & GUIDELINES:
    - When the user wants to book, check technician availability using "check_technician_availability".
    - Confirm preferred date, time, and service before executing "book_appointment".
 8. LOCATION & HOURS:
-   - Omega Spa is in Douala, Bonapriso (near Rue des Palmiers).
-   - Hours: Mon-Sat 09:00 - 20:00, Sun 12:00 - 19:00.
+   - Omega Spa is in Douala, Bonamousadi (Round point maetur).
+   - Hours: Lun-Mar-Mer-Ven: 09h00-21h00, Jeu: 10h00-21h00, Dim: 11h00-21h00.
+   - Direct Phone / Réservation: +237 6 53 14 62 69.
    - When asked for location, share address and Google Maps link: ${exports.SPA_PROFILE.googleMapsUrl}.
 9. REVIEWS & REFERRALS:
    - Invite happy clients to leave a Google 5-star review: ${exports.SPA_PROFILE.googleReviewUrl}.
