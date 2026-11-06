@@ -149,7 +149,7 @@ export class ChatbotService {
       }
     }
 
-    return "Merci de contacter OMEGA SPA Douala ! Pour confirmer votre rendez-vous ou pour toute question, notre réception est à votre écoute au +237 6 87 67 32 62.";
+    return "Merci de contacter OMEGA SPA BONAMOUSADI ! Pour confirmer votre rendez-vous ou pour toute question, notre réception est à votre écoute au +237 6 53 14 62 69.";
   }
 
   /**
