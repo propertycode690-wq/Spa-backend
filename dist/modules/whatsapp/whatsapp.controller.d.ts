@@ -15,6 +15,7 @@ export declare class WhatsAppController {
     triggerAfterService(req: Request, res: Response, next: NextFunction): Promise<void>;
     triggerPaymentConfirmation(req: Request, res: Response, next: NextFunction): Promise<void>;
     sendInvoicePdf(req: Request, res: Response, next: NextFunction): Promise<void>;
+    sendInvoiceFeedback(req: Request, res: Response, next: NextFunction): Promise<void>;
     getInvoiceReceiptStatus(req: Request, res: Response, next: NextFunction): Promise<void>;
     triggerCelebrations(_req: Request, res: Response, next: NextFunction): Promise<void>;
     triggerRebookingReminders(req: Request, res: Response, next: NextFunction): Promise<void>;

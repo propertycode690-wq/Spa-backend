@@ -34,6 +34,8 @@ router.post('/triggers/after-service', (0, roleMiddleware_1.allowRoles)('MANAGER
 router.post('/triggers/payment-confirmation', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.triggerPaymentConfirmation(req, res, next));
 // POST /api/v1/whatsapp/triggers/send-invoice-pdf - Send official PDF Receipt via WhatsApp (Manager, Reception)
 router.post('/triggers/send-invoice-pdf', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.sendInvoicePdf(req, res, next));
+// POST /api/v1/whatsapp/triggers/send-invoice-feedback - Send feedback link via WhatsApp (Manager, Reception)
+router.post('/triggers/send-invoice-feedback', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.sendInvoiceFeedback(req, res, next));
 // GET /api/v1/whatsapp/invoices/:id/receipt-status - Check if receipt was already sent (Manager, Reception)
 router.get('/invoices/:id/receipt-status', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.getInvoiceReceiptStatus(req, res, next));
 // POST /api/v1/whatsapp/triggers/celebrations - Birthday & anniversary trigger (Manager, Reception)

@@ -227,6 +227,29 @@ export declare class WhatsAppService {
         filename: string;
     }>;
     /**
+     * Dispatch feedback request with rating link immediately when payment is collected
+     */
+    sendInvoiceFeedback(invoiceId: string, recipientPhoneOverride?: string): Promise<{
+        alreadySent: boolean;
+        log: {
+            message: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
+            clientId: string | null;
+            appointmentId: string | null;
+            failureReason: string | null;
+            providerMessageId: string | null;
+            sentAt: Date | null;
+            idempotencyKey: string;
+            invoiceId: string | null;
+            recipientPhone: string;
+            automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
+            scheduledFor: Date | null;
+        };
+    }>;
+    /**
      * 6. Rebooking Reminder Trigger with Anti-Spam Guards
      */
     triggerRebooking(clientId: string, businessDate?: string): Promise<{

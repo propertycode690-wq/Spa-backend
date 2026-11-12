@@ -173,6 +173,22 @@ class WhatsAppController {
             next(error);
         }
     }
+    async sendInvoiceFeedback(req, res, next) {
+        try {
+            const { invoiceId, phone } = req.body;
+            if (!invoiceId)
+                throw new errorHandler_1.AppError('invoiceId is required', constants_1.HTTP_STATUS.BAD_REQUEST);
+            const result = await whatsapp_service_1.whatsappService.sendInvoiceFeedback(invoiceId, phone);
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Feedback link dispatched to WhatsApp',
+                data: result,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
     async getInvoiceReceiptStatus(req, res, next) {
         try {
             const invoiceId = getParamId(req, 'id');

@@ -103,10 +103,10 @@ class PaymentsService {
             }
             return payment;
         });
-        // Fire WhatsApp payment confirmation (non-blocking)
+        // Fire WhatsApp feedback link on payment collect (non-blocking)
         if (isFullyPaid && (invoice.clientId || invoice.clientPhone)) {
-            whatsapp_service_1.whatsappService.triggerPaymentConfirmation(invoice.id).catch((err) => {
-                logger_1.logger.warn('[Payments] WhatsApp payment confirmation trigger failed (non-blocking)', {
+            whatsapp_service_1.whatsappService.sendInvoiceFeedback(invoice.id).catch((err) => {
+                logger_1.logger.warn('[Payments] WhatsApp feedback link trigger failed (non-blocking)', {
                     invoiceId: invoice.id,
                     error: err?.message || String(err),
                 });

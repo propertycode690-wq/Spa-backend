@@ -59,6 +59,11 @@ router.post('/triggers/send-invoice-pdf', allowRoles('MANAGER', 'RECEPTION'), (r
   whatsappController.sendInvoicePdf(req, res, next)
 );
 
+// POST /api/v1/whatsapp/triggers/send-invoice-feedback - Send feedback link via WhatsApp (Manager, Reception)
+router.post('/triggers/send-invoice-feedback', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+  whatsappController.sendInvoiceFeedback(req, res, next)
+);
+
 // GET /api/v1/whatsapp/invoices/:id/receipt-status - Check if receipt was already sent (Manager, Reception)
 router.get('/invoices/:id/receipt-status', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
   whatsappController.getInvoiceReceiptStatus(req, res, next)

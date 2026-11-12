@@ -776,44 +776,85 @@ export class WhatsAppService {
       });
     }
 
-    // 4. Automatically dispatch feedback request with rating link right after the PDF receipt!
-    if (feedbackToken) {
-      const feedbackUrl = `${frontendBaseUrl}/feedback?token=${feedbackToken}`;
-      const clientName = invoice.client?.name || invoice.clientName || 'Valued Guest';
-      const serviceName = invoice.items?.[0]?.name || 'Prestations & Soins';
-      const loyaltyBalance = invoice.client?.loyalty?.balance || 0;
-      const feedbackMsg = `Bonjour ${clientName} ! Merci pour votre visite chez OMEGA SPA 🌿\n\n⭐ *Votre avis compte énormément pour nous !*\nDonnez votre note et votre avis en quelques secondes ici :\n${feedbackUrl}\n\nMerci et à très bientôt ! ✨\n— OMEGA SPA Douala`;
-
-      try {
-        await this.dispatchMessage({
-          recipientPhone: phone,
-          message: feedbackMsg,
-          idempotencyKey: `invoice-feedback:${invoice.id}:${Date.now()}`,
-          automationType: WhatsAppAutomationType.AFTER_SERVICE,
-          clientId: invoice.clientId || undefined,
-          invoiceId: invoice.id,
-          templateName: 'service_feedback_request',
-          templateLanguage: 'en',
-          skipActiveCheck: true,
-          templateVariables: [
-            clientName,
-            serviceName,
-            'Specialist',
-            String(loyaltyBalance),
-            feedbackUrl,
-          ],
-        });
-      } catch (fbErr: any) {
-        logger.warn('[WhatsApp] Failed to dispatch feedback link after PDF receipt', { error: fbErr?.message });
-      }
-    }
-
     return {
       success: result.success,
       status: result.status,
       log,
       filename,
     };
+  }
+
+  /**
+   * Dispatch feedback request with rating link immediately when payment is collected
+   */
+  async sendInvoiceFeedback(invoiceId: string, recipientPhoneOverride?: string) {
+    const invoice = await prisma.invoice.findUnique({
+      where: { id: invoiceId },
+      include: {
+        client: {
+          include: { loyalty: true },
+        },
+        items: true,
+      },
+    });
+
+    if (!invoice) throw new AppError('Invoice not found', HTTP_STATUS.NOT_FOUND);
+
+    const phone = recipientPhoneOverride || invoice.client?.phone || invoice.client?.whatsapp || invoice.clientPhone;
+    if (!phone) throw new AppError('Client has no phone number on file', HTTP_STATUS.BAD_REQUEST);
+
+    // Look up or generate feedback token
+    let feedbackToken: string | null = null;
+    if (invoice.appointmentId) {
+      const fb = await prisma.clientFeedback.findFirst({ where: { appointmentId: invoice.appointmentId } });
+      feedbackToken = fb?.token || null;
+    }
+    if (!feedbackToken && invoice.clientId) {
+      const fb = await prisma.clientFeedback.findFirst({
+        where: { clientId: invoice.clientId },
+        orderBy: { createdAt: 'desc' },
+      });
+      feedbackToken = fb?.token || null;
+    }
+    if (!feedbackToken) {
+      const token = `fb-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+      const fb = await prisma.clientFeedback.create({
+        data: {
+          clientId: invoice.clientId || null,
+          appointmentId: invoice.appointmentId || null,
+          token,
+          rating: 0,
+          isSubmitted: false,
+        },
+      });
+      feedbackToken = fb.token;
+    }
+
+    const frontendBaseUrl = process.env.FRONTEND_URL || 'https://omega-spa-pos.netlify.app';
+    const feedbackUrl = `${frontendBaseUrl}/feedback?token=${feedbackToken}`;
+    const clientName = invoice.client?.name || invoice.clientName || 'Valued Guest';
+    const serviceName = invoice.items?.[0]?.name || 'Prestations & Soins';
+    const loyaltyBalance = invoice.client?.loyalty?.balance || 0;
+    const feedbackMsg = `Bonjour ${clientName} ! Merci pour votre visite chez OMEGA SPA 🌿\n\n⭐ *Votre avis compte énormément pour nous !*\nDonnez votre note et votre avis en quelques secondes ici :\n${feedbackUrl}\n\nMerci et à très bientôt ! ✨\n— OMEGA SPA Douala`;
+
+    return await this.dispatchMessage({
+      recipientPhone: phone,
+      message: feedbackMsg,
+      idempotencyKey: `invoice-feedback:${invoice.id}:${Date.now()}`,
+      automationType: WhatsAppAutomationType.AFTER_SERVICE,
+      clientId: invoice.clientId || undefined,
+      invoiceId: invoice.id,
+      templateName: 'service_feedback_request',
+      templateLanguage: 'en',
+      skipActiveCheck: true,
+      templateVariables: [
+        clientName,
+        serviceName,
+        'Specialist',
+        String(loyaltyBalance),
+        feedbackUrl,
+      ],
+    });
   }
 
   /**
