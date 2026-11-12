@@ -71,10 +71,10 @@ class AppointmentsService {
         }
     }
     async createAppointment(data, authUser) {
-        // 0. Validate Operating Hours: 10:00 AM to 9:00 PM (10:00 - 21:00)
+        // 0. Validate Operating Hours: 09:00 AM to 9:00 PM (09:00 - 21:00)
         const timeMins = timeToMinutes(data.appointmentTime);
-        if (timeMins < 10 * 60 || timeMins > 21 * 60) {
-            throw new errorHandler_1.AppError('Appointments can only be booked between 10:00 AM and 9:00 PM (10:00 – 21:00)', constants_1.HTTP_STATUS.BAD_REQUEST);
+        if (timeMins < 9 * 60 || timeMins > 21 * 60) {
+            throw new errorHandler_1.AppError('Appointments can only be booked between 09:00 AM and 9:00 PM (09:00 – 21:00)', constants_1.HTTP_STATUS.BAD_REQUEST);
         }
         // 1. Validate Client exists
         const client = await database_1.default.client.findUnique({
@@ -351,8 +351,8 @@ class AppointmentsService {
         }
         if (data.appointmentTime) {
             const timeMins = timeToMinutes(data.appointmentTime);
-            if (timeMins < 10 * 60 || timeMins > 21 * 60) {
-                throw new errorHandler_1.AppError('Appointments can only be booked between 10:00 AM and 9:00 PM (10:00 – 21:00)', constants_1.HTTP_STATUS.BAD_REQUEST);
+            if (timeMins < 9 * 60 || timeMins > 21 * 60) {
+                throw new errorHandler_1.AppError('Appointments can only be booked between 09:00 AM and 9:00 PM (09:00 – 21:00)', constants_1.HTTP_STATUS.BAD_REQUEST);
             }
             updateData.appointmentTime = data.appointmentTime.trim();
         }

@@ -41,8 +41,8 @@ exports.appointmentTimeSchema = zod_1.z
     .refine((t) => {
     const [h, m] = t.split(':').map(Number);
     const mins = (h || 0) * 60 + (m || 0);
-    return mins >= 10 * 60 && mins <= 21 * 60;
-}, { message: 'Appointment time must be between 10:00 AM and 9:00 PM (10:00 – 21:00)' }));
+    return mins >= 9 * 60 && mins <= 21 * 60;
+}, { message: 'Appointment time must be between 09:00 AM and 9:00 PM (09:00 – 21:00)' }));
 exports.createAppointmentSchema = zod_1.z.object({
     clientId: zod_1.z.string({ required_error: 'clientId is required' }).uuid('Invalid clientId UUID'),
     appointmentDate: zod_1.z.string({ required_error: 'appointmentDate is required' }).min(1, 'appointmentDate is required'),
