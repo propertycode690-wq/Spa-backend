@@ -54,18 +54,18 @@ router.post('/triggers/payment-confirmation', allowRoles('MANAGER', 'RECEPTION')
   whatsappController.triggerPaymentConfirmation(req, res, next)
 );
 
-// POST /api/v1/whatsapp/triggers/send-invoice-pdf - Send official PDF Receipt via WhatsApp (Manager, Reception)
-router.post('/triggers/send-invoice-pdf', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+// POST /api/v1/whatsapp/triggers/send-invoice-pdf - Send official PDF Receipt via WhatsApp (Manager, Reception, Technician)
+router.post('/triggers/send-invoice-pdf', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) =>
   whatsappController.sendInvoicePdf(req, res, next)
 );
 
-// POST /api/v1/whatsapp/triggers/send-invoice-feedback - Send feedback link via WhatsApp (Manager, Reception)
-router.post('/triggers/send-invoice-feedback', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+// POST /api/v1/whatsapp/triggers/send-invoice-feedback - Send feedback link via WhatsApp (Manager, Reception, Technician)
+router.post('/triggers/send-invoice-feedback', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) =>
   whatsappController.sendInvoiceFeedback(req, res, next)
 );
 
-// GET /api/v1/whatsapp/invoices/:id/receipt-status - Check if receipt was already sent (Manager, Reception)
-router.get('/invoices/:id/receipt-status', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+// GET /api/v1/whatsapp/invoices/:id/receipt-status - Check if receipt was already sent (Manager, Reception, Technician)
+router.get('/invoices/:id/receipt-status', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) =>
   whatsappController.getInvoiceReceiptStatus(req, res, next)
 );
 
