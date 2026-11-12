@@ -115,7 +115,7 @@ export class PaymentsService {
     });
 
     // Fire WhatsApp payment confirmation (non-blocking)
-    if (isFullyPaid && invoice.clientId) {
+    if (isFullyPaid && (invoice.clientId || invoice.clientPhone)) {
       whatsappService.triggerPaymentConfirmation(invoice.id).catch((err: any) => {
         logger.warn('[Payments] WhatsApp payment confirmation trigger failed (non-blocking)', {
           invoiceId: invoice.id,

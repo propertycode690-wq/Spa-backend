@@ -61,7 +61,7 @@ export class WhatsAppService {
     },
     PAYMENT_CONFIRMATION: {
       template:
-        '🧾 *OMEGA SPA — Reçu / Receipt*\nFacture: {invoiceNumber}\nClient: {clientName}\n\n*Prestations / Services:*\n{itemsList}\n\n*Total Payé / Paid:* {amount} FCFA ({paymentMethod})\n*Points Fidélité / Loyalty:* {loyaltyPoints} pts\n\nMerci pour votre visite chez OMEGA SPA ! 🌿\nBonamousadi, Douala · Tél: +237 6 53 14 62 69',
+        '🧾 *OMEGA SPA — Reçu / Receipt*\nFacture: {invoiceNumber}\nClient: {clientName}\n\n*Prestations / Services:*\n{itemsList}\n\n*Total Payé / Paid:* {amount} FCFA ({paymentMethod})\n*Points Fidélité / Loyalty:* {loyaltyPoints} pts\n\n⭐ *Votre avis compte pour nous / Rate your experience:*\n{feedbackLink}\n\nMerci pour votre visite chez OMEGA SPA ! 🌿\nBonamousadi, Douala · Tél: +237 6 53 14 62 69',
       timing: 'immediate',
     },
     REBOOKING: {
@@ -667,11 +667,31 @@ export class WhatsAppService {
     // 1. Generate PDF buffer
     const { buffer, filename } = await invoicePdfService.generateInvoicePdf(invoiceId);
 
-    // Look up feedback token if available
+    // Look up or generate feedback token so EVERY receipt includes feedback link
     let feedbackToken: string | null = null;
     if (invoice.appointmentId) {
       const fb = await prisma.clientFeedback.findFirst({ where: { appointmentId: invoice.appointmentId } });
       feedbackToken = fb?.token || null;
+    }
+    if (!feedbackToken && invoice.clientId) {
+      const fb = await prisma.clientFeedback.findFirst({
+        where: { clientId: invoice.clientId },
+        orderBy: { createdAt: 'desc' },
+      });
+      feedbackToken = fb?.token || null;
+    }
+    if (!feedbackToken) {
+      const token = `fb-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+      const fb = await prisma.clientFeedback.create({
+        data: {
+          clientId: invoice.clientId || null,
+          appointmentId: invoice.appointmentId || null,
+          token,
+          rating: 0,
+          isSubmitted: false,
+        },
+      });
+      feedbackToken = fb.token;
     }
     const frontendBaseUrl = process.env.FRONTEND_URL || 'https://omega-spa-pos.netlify.app';
     const feedbackText = feedbackToken ? `\n\n⭐ Votre avis compte pour nous / Rate your experience:\n${frontendBaseUrl}/feedback?token=${feedbackToken}` : '';

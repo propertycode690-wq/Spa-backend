@@ -300,8 +300,10 @@ export class NotificationEventBuilder {
 
     if (!invoice) throw new AppError('Invoice not found', HTTP_STATUS.NOT_FOUND);
 
-    if (!invoice.client) {
-      throw new AppError('Cannot send payment confirmation for invoice without client', HTTP_STATUS.BAD_REQUEST);
+    const clientName = invoice.client?.name || invoice.clientName || 'Valued Guest';
+    const phone = invoice.client?.phone || invoice.client?.whatsapp || invoice.clientPhone;
+    if (!phone) {
+      throw new AppError('Cannot send payment confirmation for invoice without recipient phone', HTTP_STATUS.BAD_REQUEST);
     }
 
     if (invoice.status !== InvoiceStatus.PAID) {
@@ -313,31 +315,60 @@ export class NotificationEventBuilder {
 
     const lastPayment = invoice.payments[0];
     const paymentMethod = lastPayment ? lastPayment.paymentMethod : 'CASH';
-    const loyaltyPoints = invoice.client.loyalty?.balance || 0;
-    const phone = invoice.client.phone || invoice.client.whatsapp;
+    const loyaltyPoints = invoice.client?.loyalty?.balance || 0;
     const idempotencyKey = `payment-confirmation:${invoice.id}`;
 
     const itemsList = invoice.items && invoice.items.length > 0
       ? invoice.items.map((it) => `• ${it.name} (${Number(it.price).toLocaleString()} FCFA)`).join('\n')
       : '• Prestations & Soins';
 
+    // Generate or fetch feedback token for this invoice payment
+    let feedbackToken: string | null = null;
+    if (invoice.appointmentId) {
+      const fb = await prisma.clientFeedback.findFirst({ where: { appointmentId: invoice.appointmentId } });
+      feedbackToken = fb?.token || null;
+    }
+    if (!feedbackToken && invoice.clientId) {
+      const fb = await prisma.clientFeedback.findFirst({
+        where: { clientId: invoice.clientId },
+        orderBy: { createdAt: 'desc' },
+      });
+      feedbackToken = fb?.token || null;
+    }
+    if (!feedbackToken) {
+      const token = `fb-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+      const fb = await prisma.clientFeedback.create({
+        data: {
+          clientId: invoice.clientId || null,
+          appointmentId: invoice.appointmentId || null,
+          token,
+          rating: 0,
+          isSubmitted: false,
+        },
+      });
+      feedbackToken = fb.token;
+    }
+    const frontendBaseUrl = process.env.FRONTEND_URL || 'https://omega-spa-pos.netlify.app';
+    const feedbackLink = `${frontendBaseUrl}/feedback?token=${feedbackToken}`;
+
     return {
       eventType: 'PAYMENT_CONFIRMATION',
       idempotencyKey,
-      clientId: invoice.client.id,
+      clientId: invoice.clientId || undefined,
       invoiceId: invoice.id,
       recipient: {
-        clientId: invoice.client.id,
-        name: invoice.client.name,
+        clientId: invoice.clientId || undefined,
+        name: clientName,
         phone: phone || undefined,
       },
       placeholders: {
-        clientName: invoice.client.name,
+        clientName,
         amount: Number(invoice.total),
         invoiceNumber: invoice.invoiceNumber,
         paymentMethod,
         loyaltyPoints,
         itemsList,
+        feedbackLink,
       },
     };
   }
