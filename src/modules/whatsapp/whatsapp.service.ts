@@ -251,6 +251,24 @@ export class WhatsAppService {
       }
     }
 
+    // Secondary check for invoice feedback: prevent duplicate sent/queued feedback messages for the same invoice
+    if (invoiceId && automationType === WhatsAppAutomationType.AFTER_SERVICE) {
+      const existingByInv = await prisma.whatsAppMessageLog.findFirst({
+        where: {
+          invoiceId,
+          automationType: WhatsAppAutomationType.AFTER_SERVICE,
+          status: { in: ['SENT', 'DELIVERED', 'QUEUED'] },
+        },
+      });
+      if (existingByInv) {
+        logger.info(`[WhatsApp Dispatch] Feedback already sent for invoice ${invoiceId}. Skipping duplicate.`);
+        return {
+          alreadySent: true,
+          log: existingByInv,
+        };
+      }
+    }
+
     // Secondary check B: Strict 30-day anti-spam cooldown specifically for REBOOKING marketing messages
     if (automationType === WhatsAppAutomationType.REBOOKING && (recipientPhone || clientId)) {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -622,33 +640,6 @@ export class WhatsAppService {
       ],
     });
 
-    // Also dispatch feedback rating link via approved service_feedback_request template
-    if (event.placeholders.feedbackLink && event.recipient.phone) {
-      try {
-        const feedbackMsg = `Bonjour ${event.placeholders.clientName} ! Merci pour votre visite chez OMEGA SPA 🌿\n\n⭐ *Votre avis compte énormément pour nous !*\nDonnez votre note et votre avis en quelques secondes ici :\n${event.placeholders.feedbackLink}\n\nMerci et à très bientôt ! ✨\n— OMEGA SPA Douala`;
-        await this.dispatchMessage({
-          recipientPhone: event.recipient.phone,
-          message: feedbackMsg,
-          idempotencyKey: `feedback-after-pay:${event.invoiceId}:${Date.now()}`,
-          automationType: WhatsAppAutomationType.AFTER_SERVICE,
-          clientId: event.clientId,
-          invoiceId: event.invoiceId,
-          templateName: 'service_feedback_request',
-          templateLanguage: 'en',
-          skipActiveCheck: true,
-          templateVariables: [
-            String(event.placeholders.clientName || 'Valued Guest'),
-            String(event.placeholders.itemsList || 'Prestations & Soins').split('\n')[0].replace(/^•\s*/, ''),
-            'Specialist',
-            String(event.placeholders.loyaltyPoints || '0'),
-            String(event.placeholders.feedbackLink),
-          ],
-        });
-      } catch (fbErr: any) {
-        logger.warn('[WhatsApp] Failed to dispatch feedback message following payment confirmation', { error: fbErr?.message });
-      }
-    }
-
     return paymentResult;
   }
 
@@ -800,6 +791,19 @@ export class WhatsAppService {
 
     if (!invoice) throw new AppError('Invoice not found', HTTP_STATUS.NOT_FOUND);
 
+    // 1. Strict deduplication check: If feedback was already dispatched for this invoice, skip immediately!
+    const existingFeedbackLog = await prisma.whatsAppMessageLog.findFirst({
+      where: {
+        invoiceId: invoice.id,
+        automationType: WhatsAppAutomationType.AFTER_SERVICE,
+        status: { in: ['SENT', 'DELIVERED', 'QUEUED'] },
+      },
+    });
+    if (existingFeedbackLog) {
+      logger.info(`[WhatsApp] Feedback already sent for invoice ${invoice.id}. Skipping duplicate.`);
+      return { alreadySent: true, log: existingFeedbackLog };
+    }
+
     const phone = recipientPhoneOverride || invoice.client?.phone || invoice.client?.whatsapp || invoice.clientPhone;
     if (!phone) throw new AppError('Client has no phone number on file', HTTP_STATUS.BAD_REQUEST);
 
@@ -840,7 +844,7 @@ export class WhatsAppService {
     return await this.dispatchMessage({
       recipientPhone: phone,
       message: feedbackMsg,
-      idempotencyKey: `invoice-feedback:${invoice.id}:${Date.now()}`,
+      idempotencyKey: `invoice-feedback:${invoice.id}`,
       automationType: WhatsAppAutomationType.AFTER_SERVICE,
       clientId: invoice.clientId || undefined,
       invoiceId: invoice.id,
