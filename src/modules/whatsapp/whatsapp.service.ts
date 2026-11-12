@@ -589,6 +589,19 @@ export class WhatsAppService {
    * 4. After-Service Thank You Trigger
    */
   async triggerAfterService(appointmentId: string) {
+    // 1. Strict deduplication: check if feedback was already sent for this appointment
+    const existingFeedback = await prisma.whatsAppMessageLog.findFirst({
+      where: {
+        appointmentId,
+        automationType: WhatsAppAutomationType.AFTER_SERVICE,
+        status: { in: ['SENT', 'DELIVERED', 'QUEUED'] },
+      },
+    });
+    if (existingFeedback) {
+      logger.info(`[WhatsApp] Feedback already sent for appointment ${appointmentId}. Skipping duplicate.`);
+      return { alreadySent: true, log: existingFeedback };
+    }
+
     const event = await notificationEventBuilder.buildAfterServiceEvent(appointmentId);
     const setting = await this.getAutomationByType(WhatsAppAutomationType.AFTER_SERVICE);
     const message = this.compileTemplate(setting.template, event.placeholders);
@@ -791,16 +804,19 @@ export class WhatsAppService {
 
     if (!invoice) throw new AppError('Invoice not found', HTTP_STATUS.NOT_FOUND);
 
-    // 1. Strict deduplication check: If feedback was already dispatched for this invoice, skip immediately!
+    // 1. Strict deduplication check: If feedback was already dispatched for this invoice or appointment, skip immediately!
     const existingFeedbackLog = await prisma.whatsAppMessageLog.findFirst({
       where: {
-        invoiceId: invoice.id,
+        OR: [
+          { invoiceId: invoice.id },
+          ...(invoice.appointmentId ? [{ appointmentId: invoice.appointmentId }] : []),
+        ],
         automationType: WhatsAppAutomationType.AFTER_SERVICE,
         status: { in: ['SENT', 'DELIVERED', 'QUEUED'] },
       },
     });
     if (existingFeedbackLog) {
-      logger.info(`[WhatsApp] Feedback already sent for invoice ${invoice.id}. Skipping duplicate.`);
+      logger.info(`[WhatsApp] Feedback already sent for invoice ${invoice.id} or appointment ${invoice.appointmentId}. Skipping duplicate.`);
       return { alreadySent: true, log: existingFeedbackLog };
     }
 
@@ -848,6 +864,7 @@ export class WhatsAppService {
       automationType: WhatsAppAutomationType.AFTER_SERVICE,
       clientId: invoice.clientId || undefined,
       invoiceId: invoice.id,
+      appointmentId: invoice.appointmentId || undefined,
       templateName: 'service_feedback_request',
       templateLanguage: 'en',
       skipActiveCheck: true,

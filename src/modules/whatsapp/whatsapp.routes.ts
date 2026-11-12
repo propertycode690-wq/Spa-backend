@@ -89,8 +89,8 @@ router.post('/triggers/client-welcome', allowRoles('MANAGER', 'RECEPTION'), (req
   whatsappController.triggerClientWelcome(req, res, next)
 );
 
-// POST /api/v1/whatsapp/triggers/send - Dispatch single custom message with idempotency (Manager, Reception)
-router.post('/triggers/send', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+// POST /api/v1/whatsapp/triggers/send - Dispatch single custom message with idempotency (Manager, Reception, Technician)
+router.post('/triggers/send', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) =>
   whatsappController.sendCustom(req, res, next)
 );
 
