@@ -65,6 +65,7 @@ export declare class WhatsAppService {
         templateName?: string;
         templateVariables?: (string | number)[];
         templateLanguage?: string;
+        skipActiveCheck?: boolean;
     }): Promise<{
         alreadySent: boolean;
         log: {

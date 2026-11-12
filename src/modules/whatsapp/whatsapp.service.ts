@@ -206,6 +206,7 @@ export class WhatsAppService {
     templateName?: string;
     templateVariables?: (string | number)[];
     templateLanguage?: string;
+    skipActiveCheck?: boolean;
   }) {
     const {
       recipientPhone,
@@ -218,6 +219,7 @@ export class WhatsAppService {
       templateName,
       templateVariables,
       templateLanguage,
+      skipActiveCheck,
     } = params;
 
     // 1. Strict Idempotency Check: Verify if message already logged with this key
@@ -273,7 +275,7 @@ export class WhatsAppService {
     }
 
     // 2. Check if automation is active
-    if (automationType) {
+    if (automationType && !skipActiveCheck) {
       const setting = await prisma.whatsAppAutomation.findUnique({
         where: { type: automationType },
       });
@@ -633,6 +635,7 @@ export class WhatsAppService {
           invoiceId: event.invoiceId,
           templateName: 'service_feedback_request',
           templateLanguage: 'en',
+          skipActiveCheck: true,
           templateVariables: [
             String(event.placeholders.clientName || 'Valued Guest'),
             String(event.placeholders.itemsList || 'Prestations & Soins').split('\n')[0].replace(/^•\s*/, ''),
@@ -791,6 +794,7 @@ export class WhatsAppService {
           invoiceId: invoice.id,
           templateName: 'service_feedback_request',
           templateLanguage: 'en',
+          skipActiveCheck: true,
           templateVariables: [
             clientName,
             serviceName,
