@@ -543,7 +543,7 @@ class WhatsAppService {
         const event = await notification_event_builder_1.notificationEventBuilder.buildPaymentConfirmationEvent(invoiceId);
         const setting = await this.getAutomationByType(whatsapp_types_1.WhatsAppAutomationType.PAYMENT_CONFIRMATION);
         const message = this.compileTemplate(setting.template, event.placeholders);
-        return this.dispatchMessage({
+        const paymentResult = await this.dispatchMessage({
             recipientPhone: event.recipient.phone || '',
             message,
             idempotencyKey: event.idempotencyKey,
@@ -560,6 +560,33 @@ class WhatsAppService {
                 String(event.placeholders.loyaltyPoints || '0'),
             ],
         });
+        // Also dispatch feedback rating link via approved service_feedback_request template
+        if (event.placeholders.feedbackLink && event.recipient.phone) {
+            try {
+                const feedbackMsg = `Bonjour ${event.placeholders.clientName} ! Merci pour votre visite chez OMEGA SPA 🌿\n\n⭐ *Votre avis compte énormément pour nous !*\nDonnez votre note et votre avis en quelques secondes ici :\n${event.placeholders.feedbackLink}\n\nMerci et à très bientôt ! ✨\n— OMEGA SPA Douala`;
+                await this.dispatchMessage({
+                    recipientPhone: event.recipient.phone,
+                    message: feedbackMsg,
+                    idempotencyKey: `feedback-after-pay:${event.invoiceId}:${Date.now()}`,
+                    automationType: whatsapp_types_1.WhatsAppAutomationType.AFTER_SERVICE,
+                    clientId: event.clientId,
+                    invoiceId: event.invoiceId,
+                    templateName: 'service_feedback_request',
+                    templateLanguage: 'en',
+                    templateVariables: [
+                        String(event.placeholders.clientName || 'Valued Guest'),
+                        String(event.placeholders.itemsList || 'Prestations & Soins').split('\n')[0].replace(/^•\s*/, ''),
+                        'Specialist',
+                        String(event.placeholders.loyaltyPoints || '0'),
+                        String(event.placeholders.feedbackLink),
+                    ],
+                });
+            }
+            catch (fbErr) {
+                logger_1.logger.warn('[WhatsApp] Failed to dispatch feedback message following payment confirmation', { error: fbErr?.message });
+            }
+        }
+        return paymentResult;
     }
     /**
      * Check if a receipt was already sent for this invoice
@@ -594,6 +621,7 @@ class WhatsAppService {
                     orderBy: { paidAt: 'desc' },
                     take: 1,
                 },
+                items: true,
             },
         });
         if (!invoice)
@@ -674,6 +702,36 @@ class WhatsAppService {
                     details: `WhatsApp PDF Receipt dispatched (${filename}): ${result.status}`,
                 },
             });
+        }
+        // 4. Automatically dispatch feedback request with rating link right after the PDF receipt!
+        if (feedbackToken) {
+            const feedbackUrl = `${frontendBaseUrl}/feedback?token=${feedbackToken}`;
+            const clientName = invoice.client?.name || invoice.clientName || 'Valued Guest';
+            const serviceName = invoice.items?.[0]?.name || 'Prestations & Soins';
+            const loyaltyBalance = invoice.client?.loyalty?.balance || 0;
+            const feedbackMsg = `Bonjour ${clientName} ! Merci pour votre visite chez OMEGA SPA 🌿\n\n⭐ *Votre avis compte énormément pour nous !*\nDonnez votre note et votre avis en quelques secondes ici :\n${feedbackUrl}\n\nMerci et à très bientôt ! ✨\n— OMEGA SPA Douala`;
+            try {
+                await this.dispatchMessage({
+                    recipientPhone: phone,
+                    message: feedbackMsg,
+                    idempotencyKey: `invoice-feedback:${invoice.id}:${Date.now()}`,
+                    automationType: whatsapp_types_1.WhatsAppAutomationType.AFTER_SERVICE,
+                    clientId: invoice.clientId || undefined,
+                    invoiceId: invoice.id,
+                    templateName: 'service_feedback_request',
+                    templateLanguage: 'en',
+                    templateVariables: [
+                        clientName,
+                        serviceName,
+                        'Specialist',
+                        String(loyaltyBalance),
+                        feedbackUrl,
+                    ],
+                });
+            }
+            catch (fbErr) {
+                logger_1.logger.warn('[WhatsApp] Failed to dispatch feedback link after PDF receipt', { error: fbErr?.message });
+            }
         }
         return {
             success: result.success,
