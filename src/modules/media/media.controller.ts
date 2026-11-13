@@ -159,8 +159,11 @@ export class MediaController {
         files = [req.file];
       }
 
-      // Fallback: Check for base64 strings in body (e.g. from Web / React Native data URIs)
-      if (files.length === 0) {
+      // 1. Filter any valid files received from multer (buffer must be > 100 bytes)
+      let validMulterFiles = files.filter((f) => f && f.buffer && f.buffer.length > 100);
+
+      // 2. If multer files are missing or empty/corrupted, check base64 strings in body
+      if (validMulterFiles.length === 0) {
         const candidateSources = [
           req.body.base64Images,
           req.body.images,
@@ -194,12 +197,21 @@ export class MediaController {
           }
         }
 
+        const base64Files: Express.Multer.File[] = [];
         rawList.forEach((cand, idx) => {
           const parsed = parseBase64ToMulterFile(cand, 'images', idx);
-          if (parsed) {
-            files.push(parsed);
+          if (parsed && parsed.buffer && parsed.buffer.length > 100) {
+            base64Files.push(parsed);
           }
         });
+
+        if (base64Files.length > 0) {
+          files = base64Files;
+        } else {
+          files = [];
+        }
+      } else {
+        files = validMulterFiles;
       }
 
       if (files.length === 0) {
