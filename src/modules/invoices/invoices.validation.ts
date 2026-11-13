@@ -31,6 +31,15 @@ export const createInvoiceSchema = z.preprocess(
       discount: z.number().nonnegative('Discount cannot be negative').optional().default(0),
       status: z.enum([InvoiceStatus.DRAFT, InvoiceStatus.PENDING_PAYMENT, InvoiceStatus.PAID]).optional().default(InvoiceStatus.PENDING_PAYMENT),
       paymentMethod: z.enum(['CASH', 'MTN_MOMO', 'ORANGE_MONEY']).optional(),
+      payments: z
+        .array(
+          z.object({
+            amount: z.number().positive('Payment amount must be greater than 0'),
+            paymentMethod: z.enum(['CASH', 'MTN_MOMO', 'ORANGE_MONEY']),
+            notes: z.string().optional().nullable(),
+          })
+        )
+        .optional(),
       retailProducts: z
         .array(
           z.object({

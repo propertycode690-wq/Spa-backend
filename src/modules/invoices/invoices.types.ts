@@ -11,6 +11,11 @@ export interface CreateInvoiceInput {
   discount?: number;
   status?: InvoiceStatus;
   paymentMethod?: PaymentMethod;
+  payments?: {
+    amount: number;
+    paymentMethod: PaymentMethod;
+    notes?: string;
+  }[];
   retailProducts?: {
     retailProductId: string;
     quantity: number;
