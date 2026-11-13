@@ -56,6 +56,7 @@ export const uploadSingle = multer({
   limits: {
     fileSize: MAX_FILE_SIZE,
     files: 1,
+    fieldSize: 25 * 1024 * 1024, // 25MB max field size
   },
 }).single('image');
 
@@ -69,6 +70,7 @@ export const uploadCleaningProof = multer({
   limits: {
     fileSize: MAX_FILE_SIZE,
     files: 10,
+    fieldSize: 25 * 1024 * 1024, // 25MB max field size to allow large base64 strings
   },
 }).any();
 
@@ -81,6 +83,7 @@ export const uploadSocialMedia = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB
     files: 10,
+    fieldSize: 25 * 1024 * 1024,
   },
 }).array('files', 10);
 
@@ -95,6 +98,8 @@ export const handleMulterError = (err: any): string => {
         return 'File too large. Maximum file size is 5MB per image';
       case 'LIMIT_FILE_COUNT':
         return 'Too many files. Maximum 10 photos allowed per cleaning entry';
+      case 'LIMIT_FIELD_VALUE':
+        return 'Field value too long. Maximum field size is 25MB';
       case 'LIMIT_UNEXPECTED_FILE':
         return 'Unexpected field name. Use "images" or "image" as the field name';
       default:
