@@ -8,8 +8,13 @@ export class InvoicePdfService {
    * Generates a luxury, branded PDF receipt matching the exact in-app receipt design (ReceiptModal)
    */
   async generateInvoicePdf(invoiceId: string): Promise<{ buffer: Buffer; filename: string }> {
-    const invoice = await prisma.invoice.findUnique({
-      where: { id: invoiceId },
+    const invoice = await prisma.invoice.findFirst({
+      where: {
+        OR: [
+          { id: invoiceId },
+          { invoiceNumber: invoiceId },
+        ],
+      },
       include: {
         client: {
           include: { loyalty: true },
