@@ -61,7 +61,7 @@ export const uploadSingle = multer({
 
 /**
  * Multiple images upload middleware for cleaning proofs
- * Accepts 'images' (up to 10) or fallback 'image' (1)
+ * Accepts up to 10 photos under any field name ('images', 'photos', 'image', etc.)
  */
 export const uploadCleaningProof = multer({
   storage,
@@ -70,11 +70,7 @@ export const uploadCleaningProof = multer({
     fileSize: MAX_FILE_SIZE,
     files: 10,
   },
-}).fields([
-  { name: 'images', maxCount: 10 },
-  { name: 'photos', maxCount: 10 },
-  { name: 'image', maxCount: 1 },
-]);
+}).any();
 
 /**
  * Social media photo/video upload middleware (supports up to 10 files)

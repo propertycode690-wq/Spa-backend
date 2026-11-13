@@ -136,15 +136,25 @@ export class MediaController {
    */
   async uploadCleaningPhoto(req: Request, res: Response, next: NextFunction): Promise<void> {
     try {
-      const filesObj = req.files as { [fieldname: string]: Express.Multer.File[] } | undefined;
       let files: Express.Multer.File[] = [];
 
-      if (filesObj?.images && filesObj.images.length > 0) {
-        files = filesObj.images;
-      } else if (filesObj?.photos && filesObj.photos.length > 0) {
-        files = filesObj.photos;
-      } else if (filesObj?.image && filesObj.image.length > 0) {
-        files = filesObj.image;
+      if (Array.isArray(req.files) && req.files.length > 0) {
+        files = req.files;
+      } else if (req.files) {
+        const filesObj = req.files as { [fieldname: string]: Express.Multer.File[] };
+        if (filesObj.images && filesObj.images.length > 0) {
+          files = filesObj.images;
+        } else if (filesObj.photos && filesObj.photos.length > 0) {
+          files = filesObj.photos;
+        } else if (filesObj.image && filesObj.image.length > 0) {
+          files = filesObj.image;
+        } else {
+          for (const key of Object.keys(filesObj)) {
+            if (Array.isArray(filesObj[key])) {
+              files.push(...filesObj[key]);
+            }
+          }
+        }
       } else if (req.file) {
         files = [req.file];
       }
