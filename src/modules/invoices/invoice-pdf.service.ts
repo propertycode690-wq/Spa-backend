@@ -31,8 +31,7 @@ export class InvoicePdfService {
           },
         },
         payments: {
-          orderBy: { paidAt: 'desc' },
-          take: 1,
+          orderBy: { paidAt: 'asc' },
         },
       },
     });
@@ -49,11 +48,19 @@ export class InvoicePdfService {
     const invNumber = invoice.invoiceNumber || invoice.id.slice(0, 8);
     const filename = `OMEGA_SPA_Receipt_${invNumber}.pdf`;
 
-    const lastPayment = invoice.payments[0];
-    const rawPaymentMethod = lastPayment?.paymentMethod || 'CASH';
+    const payments = invoice.payments || [];
+    const lastPayment = payments[payments.length - 1];
     let paymentMethodDisplay = 'CASH';
-    if (rawPaymentMethod) {
-      const pm = String(rawPaymentMethod).toUpperCase().replace(/-/g, '_');
+    if (payments.length > 1) {
+      paymentMethodDisplay = payments
+        .map((p) => {
+          const pm = String(p.paymentMethod).toUpperCase();
+          const label = pm.includes('ORANGE') ? 'ORANGE MONEY' : pm.includes('MTN') || pm.includes('MOMO') ? 'MTN MOMO' : 'CASH';
+          return `${label}: ${Number(p.amount).toLocaleString('en-US')} FCFA`;
+        })
+        .join(' + ');
+    } else if (payments.length === 1) {
+      const pm = String(payments[0].paymentMethod).toUpperCase().replace(/-/g, '_');
       if (pm.includes('ORANGE')) paymentMethodDisplay = 'ORANGE MONEY';
       else if (pm.includes('MTN') || pm.includes('MOMO')) paymentMethodDisplay = 'MTN MOMO';
       else paymentMethodDisplay = pm.replace(/_/g, ' ');
