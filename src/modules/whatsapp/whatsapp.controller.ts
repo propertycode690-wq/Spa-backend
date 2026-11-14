@@ -390,9 +390,9 @@ export class WhatsAppController {
       const { phone, clientName } = req.body;
       const targetPhone = phone || whatsappService.getBossPhoneNumber() || '+237676761349';
       const result = await holidayService.testSendGreeting(idOrCode, targetPhone, clientName);
-      res.status(HTTP_STATUS.OK).json({
-        success: true,
-        message: result.success ? 'Test greeting sent successfully!' : 'Failed to send test greeting',
+      res.status(result.success ? HTTP_STATUS.OK : HTTP_STATUS.BAD_REQUEST).json({
+        success: result.success,
+        message: result.success ? `Test greeting sent successfully to ${targetPhone}!` : `Failed to send test greeting: ${result.error || 'Provider rejected message'}`,
         data: result,
       });
     } catch (error) {

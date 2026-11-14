@@ -440,6 +440,10 @@ export class WhatsAppProviderAdapter implements INotificationProvider, IWhatsApp
     if (cleaned.length === 9 && (cleaned.startsWith('6') || cleaned.startsWith('2'))) {
       return `237${cleaned}`;
     }
+    // Indian mobile numbers are 10 digits (starting with 6, 7, 8, 9)
+    if (cleaned.length === 10 && /^[6-9]/.test(cleaned)) {
+      return `91${cleaned}`;
+    }
     return cleaned;
   }
 }
