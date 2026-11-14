@@ -79,8 +79,8 @@ router.post('/triggers/rebooking-reminders', allowRoles('MANAGER', 'RECEPTION'),
   whatsappController.triggerRebookingReminders(req, res, next)
 );
 
-// POST /api/v1/whatsapp/triggers/daily-close - Trigger Daily Close summary to Boss (Manager only)
-router.post('/triggers/daily-close', allowRoles('MANAGER'), (req, res, next) =>
+// POST /api/v1/whatsapp/triggers/daily-close - Trigger Daily Close summary to Boss (Manager, Reception)
+router.post('/triggers/daily-close', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
   whatsappController.triggerDailyClose(req, res, next)
 );
 
