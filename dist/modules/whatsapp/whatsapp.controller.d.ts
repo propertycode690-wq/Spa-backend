@@ -27,6 +27,10 @@ export declare class WhatsAppController {
     updateRetentionSettings(req: Request, res: Response, next: NextFunction): Promise<void>;
     getBossPhone(_req: Request, res: Response, next: NextFunction): Promise<void>;
     updateBossPhone(req: Request, res: Response, next: NextFunction): Promise<void>;
+    getHolidays(_req: Request, res: Response, next: NextFunction): Promise<void>;
+    updateHoliday(req: Request, res: Response, next: NextFunction): Promise<void>;
+    testSendHoliday(req: Request, res: Response, next: NextFunction): Promise<void>;
+    triggerTodayHolidays(_req: Request, res: Response, next: NextFunction): Promise<void>;
     handleWebhook(req: Request, res: Response, next: NextFunction): Promise<void>;
 }
 export declare const whatsappController: WhatsAppController;

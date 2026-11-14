@@ -62,5 +62,14 @@ router.patch('/settings/retention', (0, roleMiddleware_1.allowRoles)('MANAGER'),
 router.get('/settings/boss-phone', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.getBossPhone(req, res, next));
 // POST /api/v1/whatsapp/settings/boss-phone - Update configured Boss WhatsApp phone (Manager only)
 router.post('/settings/boss-phone', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => whatsapp_controller_1.whatsappController.updateBossPhone(req, res, next));
+// ─── HOLIDAY & OCCASION GREETINGS AUTOMATION ───
+// GET /api/v1/whatsapp/holidays - List all 24 fixed & variable holidays (Manager, Reception)
+router.get('/holidays', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.getHolidays(req, res, next));
+// PATCH /api/v1/whatsapp/holidays/:id - Update holiday settings or variable date (Manager only)
+router.patch('/holidays/:id', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => whatsapp_controller_1.whatsappController.updateHoliday(req, res, next));
+// POST /api/v1/whatsapp/holidays/:id/test-send - Send test greeting for a holiday (Manager, Reception)
+router.post('/holidays/:id/test-send', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.testSendHoliday(req, res, next));
+// POST /api/v1/whatsapp/holidays/trigger-today - Manually trigger today's holiday greeting check (Manager only)
+router.post('/holidays/trigger-today', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => whatsapp_controller_1.whatsappController.triggerTodayHolidays(req, res, next));
 exports.default = router;
 //# sourceMappingURL=whatsapp.routes.js.map

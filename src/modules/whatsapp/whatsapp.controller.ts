@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { whatsappService, normalizeAutomationType } from './whatsapp.service';
+import { holidayService } from './holiday.service';
 import {
   updateAutomationSchema,
   sendCustomMessageSchema,
@@ -348,6 +349,84 @@ export class WhatsAppController {
         success: true,
         message: `Boss WhatsApp phone number updated to ${savedPhone}`,
         data: { bossPhone: savedPhone },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getHolidays(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const holidays = holidayService.getHolidays();
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: holidays,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateHoliday(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const idOrCode = getParamId(req, 'id');
+      const updated = holidayService.updateHoliday(idOrCode, req.body);
+      if (!updated) {
+        throw new AppError('Holiday not found', HTTP_STATUS.NOT_FOUND);
+      }
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: `Holiday ${updated.name} updated successfully`,
+        data: updated,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async testSendHoliday(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const idOrCode = getParamId(req, 'id');
+      const { phone, clientName } = req.body;
+      const targetPhone = phone || whatsappService.getBossPhoneNumber() || '+237676761349';
+      const result = await holidayService.testSendGreeting(idOrCode, targetPhone, clientName);
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: result.success ? 'Test greeting sent successfully!' : 'Failed to send test greeting',
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async triggerTodayHolidays(_req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const now = new Date();
+      const doualaStr = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Africa/Douala',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(now);
+
+      const year = parseInt(doualaStr.split('-')[0], 10);
+      const todaysHolidays = holidayService.getHolidaysForDate(doualaStr);
+
+      const results = [];
+      for (const h of todaysHolidays) {
+        const dispatchRes = await holidayService.dispatchHolidayGreetings(h.code, year);
+        results.push(dispatchRes);
+      }
+
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: `Processed ${todaysHolidays.length} holiday(s) for ${doualaStr}`,
+        data: {
+          date: doualaStr,
+          holidaysCount: todaysHolidays.length,
+          results,
+        },
       });
     } catch (error) {
       next(error);

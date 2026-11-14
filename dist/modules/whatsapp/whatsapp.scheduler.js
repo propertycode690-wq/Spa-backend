@@ -24,6 +24,7 @@ exports.stopWhatsAppScheduler = stopWhatsAppScheduler;
 const node_cron_1 = __importDefault(require("node-cron"));
 const logger_1 = require("../../utils/logger");
 const whatsapp_service_1 = require("./whatsapp.service");
+const holiday_service_1 = require("./holiday.service");
 const database_1 = __importDefault(require("../../config/database"));
 const WHATSAPP_TIMEZONE = 'Africa/Douala';
 const scheduledJobs = [];
@@ -181,6 +182,32 @@ function initWhatsAppScheduler() {
             cutoffDate: result.cutoffDate.toISOString(),
         });
     }, 'PURGE_LOGS');
+    // 6. Daily 09:00 (Africa/Douala): Holiday & Occasion Greetings Dispatch
+    createGuardedJob('Holiday & Occasion Greetings', '0 9 * * *', async () => {
+        try {
+            const now = new Date();
+            const doualaStr = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'Africa/Douala',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            }).format(now);
+            const year = parseInt(doualaStr.split('-')[0], 10);
+            const todaysHolidays = holiday_service_1.holidayService.getHolidaysForDate(doualaStr);
+            if (todaysHolidays.length === 0) {
+                logger_1.logger.info(`[WhatsApp Scheduler] No active holidays found for today (${doualaStr})`);
+                return;
+            }
+            for (const h of todaysHolidays) {
+                logger_1.logger.info(`[WhatsApp Scheduler] Dispatching greetings for holiday: ${h.name} (${h.code})`);
+                const dispatchRes = await holiday_service_1.holidayService.dispatchHolidayGreetings(h.code, year);
+                logger_1.logger.info(`[WhatsApp Scheduler] Completed holiday dispatch for ${h.name}:`, dispatchRes);
+            }
+        }
+        catch (err) {
+            logger_1.logger.error('[WhatsApp Scheduler] Error during holiday greetings dispatch:', err);
+        }
+    }, 'HOLIDAY_GREETINGS');
     // Asynchronously load and apply any saved custom timings from the database
     (async () => {
         try {

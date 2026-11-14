@@ -2,6 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.whatsappController = exports.WhatsAppController = void 0;
 const whatsapp_service_1 = require("./whatsapp.service");
+const holiday_service_1 = require("./holiday.service");
 const whatsapp_validation_1 = require("./whatsapp.validation");
 const constants_1 = require("../../config/constants");
 const errorHandler_1 = require("../../middleware/errorHandler");
@@ -335,6 +336,81 @@ class WhatsAppController {
                 success: true,
                 message: `Boss WhatsApp phone number updated to ${savedPhone}`,
                 data: { bossPhone: savedPhone },
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async getHolidays(_req, res, next) {
+        try {
+            const holidays = holiday_service_1.holidayService.getHolidays();
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                data: holidays,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async updateHoliday(req, res, next) {
+        try {
+            const idOrCode = getParamId(req, 'id');
+            const updated = holiday_service_1.holidayService.updateHoliday(idOrCode, req.body);
+            if (!updated) {
+                throw new errorHandler_1.AppError('Holiday not found', constants_1.HTTP_STATUS.NOT_FOUND);
+            }
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                message: `Holiday ${updated.name} updated successfully`,
+                data: updated,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async testSendHoliday(req, res, next) {
+        try {
+            const idOrCode = getParamId(req, 'id');
+            const { phone, clientName } = req.body;
+            const targetPhone = phone || whatsapp_service_1.whatsappService.getBossPhoneNumber() || '+237676761349';
+            const result = await holiday_service_1.holidayService.testSendGreeting(idOrCode, targetPhone, clientName);
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                message: result.success ? 'Test greeting sent successfully!' : 'Failed to send test greeting',
+                data: result,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async triggerTodayHolidays(_req, res, next) {
+        try {
+            const now = new Date();
+            const doualaStr = new Intl.DateTimeFormat('en-CA', {
+                timeZone: 'Africa/Douala',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            }).format(now);
+            const year = parseInt(doualaStr.split('-')[0], 10);
+            const todaysHolidays = holiday_service_1.holidayService.getHolidaysForDate(doualaStr);
+            const results = [];
+            for (const h of todaysHolidays) {
+                const dispatchRes = await holiday_service_1.holidayService.dispatchHolidayGreetings(h.code, year);
+                results.push(dispatchRes);
+            }
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                message: `Processed ${todaysHolidays.length} holiday(s) for ${doualaStr}`,
+                data: {
+                    date: doualaStr,
+                    holidaysCount: todaysHolidays.length,
+                    results,
+                },
             });
         }
         catch (error) {
