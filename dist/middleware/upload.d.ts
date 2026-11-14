@@ -15,7 +15,7 @@
 export declare const uploadSingle: import("express").RequestHandler<import("express-serve-static-core").ParamsDictionary, any, any, import("qs").ParsedQs, Record<string, any>>;
 /**
  * Multiple images upload middleware for cleaning proofs
- * Accepts 'images' (up to 10) or fallback 'image' (1)
+ * Accepts up to 10 photos under any field name ('images', 'photos', 'image', etc.)
  */
 export declare const uploadCleaningProof: import("express").RequestHandler<import("express-serve-static-core").ParamsDictionary, any, any, import("qs").ParsedQs, Record<string, any>>;
 /**

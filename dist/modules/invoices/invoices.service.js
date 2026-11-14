@@ -320,18 +320,36 @@ class InvoicesService {
                             },
                         });
                     }
-                    // If status is PAID and paymentMethod is provided, create payment record
-                    if (invoiceStatus === client_1.InvoiceStatus.PAID && data.paymentMethod) {
-                        await tx.payment.create({
-                            data: {
-                                invoiceId: created.id,
-                                amount: total,
-                                paymentMethod: data.paymentMethod,
-                                receivedById: authUser.id,
-                                paidAt: new Date(),
-                                notes: isRetailOnly ? 'Retail sale paid at reception' : 'Invoice payment recorded',
-                            },
-                        });
+                    // If status is PAID, create payment record(s) (supports split payments & single payment)
+                    if (invoiceStatus === client_1.InvoiceStatus.PAID) {
+                        if (data.payments && data.payments.length > 0) {
+                            for (const p of data.payments) {
+                                if (Number(p.amount) > 0) {
+                                    await tx.payment.create({
+                                        data: {
+                                            invoiceId: created.id,
+                                            amount: Number(p.amount),
+                                            paymentMethod: p.paymentMethod,
+                                            receivedById: authUser.id,
+                                            paidAt: new Date(),
+                                            notes: p.notes || (isRetailOnly ? 'Retail sale split payment' : 'Split invoice payment recorded'),
+                                        },
+                                    });
+                                }
+                            }
+                        }
+                        else if (data.paymentMethod) {
+                            await tx.payment.create({
+                                data: {
+                                    invoiceId: created.id,
+                                    amount: total,
+                                    paymentMethod: data.paymentMethod,
+                                    receivedById: authUser.id,
+                                    paidAt: new Date(),
+                                    notes: isRetailOnly ? 'Retail sale paid at reception' : 'Invoice payment recorded',
+                                },
+                            });
+                        }
                     }
                     // Log ClientHistory if client linked & update lastVisitAt
                     if (targetClientId) {

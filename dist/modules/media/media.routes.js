@@ -43,9 +43,9 @@ router.post('/upload/client', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEP
 // Attendance photo upload (clock-in / clock-out)
 router.post('/upload/attendance', handleUpload, (req, res, next) => media_controller_1.mediaController.uploadAttendancePhoto(req, res, next));
 // Cleaning proof upload (supports 1 to 10 camera photos)
-router.post('/upload/cleaning', (0, roleMiddleware_1.allowRoles)('MANAGER', 'CLEANER'), handleCleaningUpload, (req, res, next) => media_controller_1.mediaController.uploadCleaningPhoto(req, res, next));
-// Get persistent cleaning records (role-secured: cleaners see own, managers see all)
-router.get('/cleaning', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'CLEANER'), (req, res, next) => media_controller_1.mediaController.getCleaningRecords(req, res, next));
+router.post('/upload/cleaning', (0, roleMiddleware_1.allowRoles)('MANAGER', 'CLEANER', 'RECEPTION', 'TECHNICIAN'), handleCleaningUpload, (req, res, next) => media_controller_1.mediaController.uploadCleaningPhoto(req, res, next));
+// Get persistent cleaning records (role-secured: cleaners/techs see own, managers/reception see all)
+router.get('/cleaning', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'CLEANER', 'TECHNICIAN'), (req, res, next) => media_controller_1.mediaController.getCleaningRecords(req, res, next));
 // Delete cleaning record and Cloudinary images (MANAGER only)
 router.delete('/cleaning/:id', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => media_controller_1.mediaController.deleteCleaningRecord(req, res, next));
 // Get client media

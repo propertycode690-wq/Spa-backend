@@ -31,6 +31,13 @@ exports.createInvoiceSchema = zod_1.z.preprocess((val) => {
     discount: zod_1.z.number().nonnegative('Discount cannot be negative').optional().default(0),
     status: zod_1.z.enum([client_1.InvoiceStatus.DRAFT, client_1.InvoiceStatus.PENDING_PAYMENT, client_1.InvoiceStatus.PAID]).optional().default(client_1.InvoiceStatus.PENDING_PAYMENT),
     paymentMethod: zod_1.z.enum(['CASH', 'MTN_MOMO', 'ORANGE_MONEY']).optional(),
+    payments: zod_1.z
+        .array(zod_1.z.object({
+        amount: zod_1.z.number().positive('Payment amount must be greater than 0'),
+        paymentMethod: zod_1.z.enum(['CASH', 'MTN_MOMO', 'ORANGE_MONEY']),
+        notes: zod_1.z.string().optional().nullable(),
+    }))
+        .optional(),
     retailProducts: zod_1.z
         .array(zod_1.z.object({
         retailProductId: zod_1.z.string().uuid('Invalid retailProductId UUID'),

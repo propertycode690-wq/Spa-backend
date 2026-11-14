@@ -103,7 +103,8 @@ class InvoicesController {
             const id = getParamId(req, 'id');
             const { buffer, filename } = await invoice_pdf_service_1.invoicePdfService.generateInvoicePdf(id);
             res.setHeader('Content-Type', 'application/pdf');
-            res.setHeader('Content-Disposition', `inline; filename="${filename}"`);
+            const isDownload = req.query.download === 'true';
+            res.setHeader('Content-Disposition', `${isDownload ? 'attachment' : 'inline'}; filename="${filename}"`);
             res.setHeader('Content-Length', buffer.length);
             res.status(constants_1.HTTP_STATUS.OK).send(buffer);
         }

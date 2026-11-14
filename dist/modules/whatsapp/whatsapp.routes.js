@@ -46,8 +46,8 @@ router.post('/triggers/rebooking-reminders', (0, roleMiddleware_1.allowRoles)('M
 router.post('/triggers/daily-close', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => whatsapp_controller_1.whatsappController.triggerDailyClose(req, res, next));
 // POST /api/v1/whatsapp/triggers/client-welcome - Welcome message trigger (Manager, Reception)
 router.post('/triggers/client-welcome', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.triggerClientWelcome(req, res, next));
-// POST /api/v1/whatsapp/triggers/send - Dispatch single custom message with idempotency (Manager, Reception)
-router.post('/triggers/send', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.sendCustom(req, res, next));
+// POST /api/v1/whatsapp/triggers/send - Dispatch single custom message with idempotency (Manager, Reception, Technician)
+router.post('/triggers/send', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => whatsapp_controller_1.whatsappController.sendCustom(req, res, next));
 // GET /api/v1/whatsapp/logs - Audit logs with filtering & pagination (Manager, Reception)
 router.get('/logs', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.getLogs(req, res, next));
 // POST /api/v1/whatsapp/logs/:id/retry - Retry message (Manager, Reception)

@@ -10,6 +10,19 @@ export declare const createInvoiceSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     discount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
     status: z.ZodDefault<z.ZodOptional<z.ZodEnum<["DRAFT", "PENDING_PAYMENT", "PAID"]>>>;
     paymentMethod: z.ZodOptional<z.ZodEnum<["CASH", "MTN_MOMO", "ORANGE_MONEY"]>>;
+    payments: z.ZodOptional<z.ZodArray<z.ZodObject<{
+        amount: z.ZodNumber;
+        paymentMethod: z.ZodEnum<["CASH", "MTN_MOMO", "ORANGE_MONEY"]>;
+        notes: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    }, "strip", z.ZodTypeAny, {
+        amount: number;
+        paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
+        notes?: string | null | undefined;
+    }, {
+        amount: number;
+        paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
+        notes?: string | null | undefined;
+    }>, "many">>;
     retailProducts: z.ZodOptional<z.ZodArray<z.ZodObject<{
         retailProductId: z.ZodString;
         quantity: z.ZodNumber;
@@ -55,6 +68,11 @@ export declare const createInvoiceSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     clientName?: string | null | undefined;
     invoiceNumber?: string | null | undefined;
     clientPhone?: string | null | undefined;
+    payments?: {
+        amount: number;
+        paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
+        notes?: string | null | undefined;
+    }[] | undefined;
     paymentMethod?: "CASH" | "MTN_MOMO" | "ORANGE_MONEY" | undefined;
     services?: {
         price: number;
@@ -79,6 +97,11 @@ export declare const createInvoiceSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     invoiceNumber?: string | null | undefined;
     clientPhone?: string | null | undefined;
     discount?: number | undefined;
+    payments?: {
+        amount: number;
+        paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
+        notes?: string | null | undefined;
+    }[] | undefined;
     paymentMethod?: "CASH" | "MTN_MOMO" | "ORANGE_MONEY" | undefined;
     services?: {
         price: number;
@@ -103,6 +126,11 @@ export declare const createInvoiceSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     clientName?: string | null | undefined;
     invoiceNumber?: string | null | undefined;
     clientPhone?: string | null | undefined;
+    payments?: {
+        amount: number;
+        paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
+        notes?: string | null | undefined;
+    }[] | undefined;
     paymentMethod?: "CASH" | "MTN_MOMO" | "ORANGE_MONEY" | undefined;
     services?: {
         price: number;
@@ -127,6 +155,11 @@ export declare const createInvoiceSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     invoiceNumber?: string | null | undefined;
     clientPhone?: string | null | undefined;
     discount?: number | undefined;
+    payments?: {
+        amount: number;
+        paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
+        notes?: string | null | undefined;
+    }[] | undefined;
     paymentMethod?: "CASH" | "MTN_MOMO" | "ORANGE_MONEY" | undefined;
     services?: {
         price: number;
@@ -151,6 +184,11 @@ export declare const createInvoiceSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     clientName?: string | null | undefined;
     invoiceNumber?: string | null | undefined;
     clientPhone?: string | null | undefined;
+    payments?: {
+        amount: number;
+        paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
+        notes?: string | null | undefined;
+    }[] | undefined;
     paymentMethod?: "CASH" | "MTN_MOMO" | "ORANGE_MONEY" | undefined;
     services?: {
         price: number;

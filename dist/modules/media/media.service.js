@@ -375,8 +375,8 @@ class MediaService {
      */
     async getCleaningRecords(cleanerId, authUser, limit = 100) {
         let effectiveCleanerId = cleanerId;
-        // Enforce role isolation: CLEANER can only view their own submissions
-        if (authUser?.role === 'CLEANER') {
+        // Enforce role isolation: CLEANER and TECHNICIAN can only view their own submissions
+        if (authUser?.role === 'CLEANER' || authUser?.role === 'TECHNICIAN') {
             effectiveCleanerId = authUser.id;
         }
         const records = await database_1.default.cleaningRecord.findMany({
