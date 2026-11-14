@@ -158,3 +158,34 @@ export interface CustomerAnalyticsResponse {
     active: number;
   };
 }
+
+export interface ServicePerformanceItem {
+  serviceId: string;
+  serviceName: string;
+  category: string;
+  price: number;
+  timesSold: number;
+  totalRevenue: number;
+  uniqueClients: number;
+  averageTicket: number;
+  revenuePercentage: number;
+}
+
+export interface ServicePerformanceResponse {
+  period: string;
+  dateRange: {
+    startDate: string;
+    endDate: string;
+  };
+  kpi: {
+    totalCatalogServices: number;
+    performingServicesCount: number;
+    ignoredServicesCount: number;
+    totalServiceRevenue: number;
+    totalTimesSold: number;
+    totalUniqueClients: number;
+  };
+  bestPerformers: ServicePerformanceItem[];
+  worstPerformers: ServicePerformanceItem[];
+  ignoredServices: ServicePerformanceItem[];
+}
