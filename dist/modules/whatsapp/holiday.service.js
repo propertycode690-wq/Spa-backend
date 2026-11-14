@@ -57,6 +57,8 @@ const DEFAULT_HOLIDAYS = [
             '2026': '2026-01-19',
             '2027': '2027-01-18',
             '2028': '2028-01-17',
+            '2029': '2029-01-15',
+            '2030': '2030-01-21',
         },
         isActive: true,
         timing: '09:00',
@@ -70,6 +72,8 @@ const DEFAULT_HOLIDAYS = [
             '2026': '2026-03-20',
             '2027': '2027-03-10',
             '2028': '2028-02-28',
+            '2029': '2029-02-15',
+            '2030': '2030-02-05',
         },
         isActive: true,
         timing: '09:00',
@@ -83,6 +87,8 @@ const DEFAULT_HOLIDAYS = [
             '2026': '2026-04-03',
             '2027': '2027-03-26',
             '2028': '2028-04-14',
+            '2029': '2029-03-30',
+            '2030': '2030-04-19',
         },
         isActive: true,
         timing: '09:00',
@@ -96,6 +102,8 @@ const DEFAULT_HOLIDAYS = [
             '2026': '2026-04-05',
             '2027': '2027-03-28',
             '2028': '2028-04-16',
+            '2029': '2029-04-01',
+            '2030': '2030-04-21',
         },
         isActive: true,
         timing: '09:00',
@@ -109,6 +117,8 @@ const DEFAULT_HOLIDAYS = [
             '2026': '2026-05-14',
             '2027': '2027-05-06',
             '2028': '2028-05-25',
+            '2029': '2029-05-10',
+            '2030': '2030-05-30',
         },
         isActive: true,
         timing: '09:00',
@@ -122,6 +132,8 @@ const DEFAULT_HOLIDAYS = [
             '2026': '2026-05-10',
             '2027': '2027-05-09',
             '2028': '2028-05-14',
+            '2029': '2029-05-13',
+            '2030': '2030-05-12',
         },
         isActive: true,
         timing: '09:00',
@@ -135,6 +147,8 @@ const DEFAULT_HOLIDAYS = [
             '2026': '2026-05-27',
             '2027': '2027-05-16',
             '2028': '2028-05-05',
+            '2029': '2029-04-24',
+            '2030': '2030-04-14',
         },
         isActive: true,
         timing: '09:00',
@@ -148,6 +162,8 @@ const DEFAULT_HOLIDAYS = [
             '2026': '2026-06-21',
             '2027': '2027-06-20',
             '2028': '2028-06-18',
+            '2029': '2029-06-17',
+            '2030': '2030-06-16',
         },
         isActive: true,
         timing: '09:00',
@@ -166,12 +182,22 @@ class HolidayService {
                 const parsed = JSON.parse(raw);
                 if (Array.isArray(parsed) && parsed.length > 0) {
                     // Merge defaults in case new holidays were added
-                    const existingCodes = new Set(parsed.map((h) => h.code));
                     let changed = false;
                     for (const d of DEFAULT_HOLIDAYS) {
-                        if (!existingCodes.has(d.code)) {
+                        const existing = parsed.find((h) => h.code === d.code);
+                        if (!existing) {
                             parsed.push(d);
                             changed = true;
+                        }
+                        else if (d.variableDates) {
+                            if (!existing.variableDates)
+                                existing.variableDates = {};
+                            for (const [yr, dt] of Object.entries(d.variableDates)) {
+                                if (!existing.variableDates[yr]) {
+                                    existing.variableDates[yr] = dt;
+                                    changed = true;
+                                }
+                            }
                         }
                     }
                     this.holidaysCache = parsed;
