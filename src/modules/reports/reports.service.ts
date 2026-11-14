@@ -43,12 +43,12 @@ export class ReportsService {
     if (period === 'today') {
       startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
       endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
-    } else if (period === 'weekly') {
+    } else if (period === 'weekly' || period === '7d') {
       startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       startDate.setHours(0, 0, 0, 0);
       endDate = new Date(now);
       endDate.setHours(23, 59, 59, 999);
-    } else if (period === 'monthly') {
+    } else if (period === 'monthly' || period === '30d') {
       startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
       startDate.setHours(0, 0, 0, 0);
       endDate = new Date(now);

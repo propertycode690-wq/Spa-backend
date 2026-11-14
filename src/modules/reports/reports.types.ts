@@ -1,6 +1,6 @@
 import { PaymentMethod, AppointmentStatus } from '@prisma/client';
 
-export type ReportPeriod = 'today' | 'weekly' | 'monthly' | 'custom';
+export type ReportPeriod = 'today' | 'weekly' | 'monthly' | 'custom' | '7d' | '30d';
 
 export interface DateRangeQuery {
   period?: ReportPeriod;
