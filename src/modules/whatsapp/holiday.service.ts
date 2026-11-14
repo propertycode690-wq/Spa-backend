@@ -328,7 +328,7 @@ export class HolidayService {
     failedCount: number;
   }> {
     const list = this.getHolidays();
-    const holiday = list.find((h) => h.code === holidayCode);
+    const holiday = list.find((h) => h.code === holidayCode || h.id === holidayCode);
     if (!holiday) {
       throw new Error(`Holiday not found with code: ${holidayCode}`);
     }
@@ -440,7 +440,7 @@ export class HolidayService {
     error?: string;
   }> {
     const list = this.getHolidays();
-    const holiday = list.find((h) => h.code === holidayCode);
+    const holiday = list.find((h) => h.code === holidayCode || h.id === holidayCode);
     const holidayName = holiday ? holiday.name : 'Special Holiday';
     const clientName = testName && testName.trim() ? testName.trim() : 'Valued Client';
     const message = this.formatMessage(clientName, holidayName);
