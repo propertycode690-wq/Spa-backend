@@ -3,7 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.technicianReportQuerySchema = exports.topServicesQuerySchema = exports.dateRangeQuerySchema = void 0;
 const zod_1 = require("zod");
 exports.dateRangeQuerySchema = zod_1.z.object({
-    period: zod_1.z.enum(['today', 'weekly', 'monthly', 'custom']).optional(),
+    period: zod_1.z.enum(['today', 'weekly', 'monthly', 'custom', '7d', '30d']).optional(),
     startDate: zod_1.z.string().optional(),
     endDate: zod_1.z.string().optional(),
 });

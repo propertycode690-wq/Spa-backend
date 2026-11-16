@@ -10,12 +10,12 @@ router.use(authMiddleware_1.authMiddleware);
 router.get('/activity', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => stock_controller_1.stockController.getStockActivities(req, res, next));
 // GET /api/v1/stock/retail — View retail products and stock
 router.get('/retail', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => stock_controller_1.stockController.getRetailStock(req, res, next));
-// POST /api/v1/stock/retail — Manager create retail product
-router.post('/retail', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.createRetailProduct(req, res, next));
-// PATCH /api/v1/stock/retail/:id — Manager update retail product (price, stock, active status)
-router.patch('/retail/:id', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.updateRetailProduct(req, res, next));
-// POST /api/v1/stock/retail/:id/refill — Manager refill retail product
-router.post('/retail/:id/refill', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.refillRetailProduct(req, res, next));
+// POST /api/v1/stock/retail — Manager & Reception create retail product
+router.post('/retail', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.createRetailProduct(req, res, next));
+// PATCH /api/v1/stock/retail/:id — Manager & Reception update retail product (price, stock, active status)
+router.patch('/retail/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.updateRetailProduct(req, res, next));
+// POST /api/v1/stock/retail/:id/refill — Manager & Reception refill retail product
+router.post('/retail/:id/refill', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.refillRetailProduct(req, res, next));
 // POST /api/v1/stock/retail/deduct — Deduct retail product stock on sale
 router.post('/retail/deduct', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.deductRetailStock(req, res, next));
 // GET /api/v1/stock — View service stock (Manager, Reception, Technician)
@@ -39,8 +39,8 @@ router.post('/:id/refill', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, re
 router.post('/:id/adjust', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.adjustStock(req, res, next));
 // PATCH /api/v1/stock/:id — Manager updates service stock details
 router.patch('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.updateStock(req, res, next));
-// DELETE /api/v1/stock/retail/:id — Manager deletes retail product
-router.delete('/retail/:id', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.deleteRetailProduct(req, res, next));
+// DELETE /api/v1/stock/retail/:id — Manager & Reception delete retail product
+router.delete('/retail/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.deleteRetailProduct(req, res, next));
 // DELETE /api/v1/stock/:id — Manager deletes service stock item
 router.delete('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.deleteServiceStock(req, res, next));
 exports.default = router;

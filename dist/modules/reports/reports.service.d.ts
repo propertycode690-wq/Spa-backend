@@ -1,4 +1,4 @@
-import { DateRangeQuery, ParsedDateRange, AuthContextUser, DashboardSummaryResponse, RevenueReportResponse, AppointmentAnalyticsResponse, TopServicesResponse, TechnicianPerformanceResponse, StockConsumptionReportResponse, CustomerAnalyticsResponse } from './reports.types';
+import { DateRangeQuery, ParsedDateRange, AuthContextUser, DashboardSummaryResponse, RevenueReportResponse, AppointmentAnalyticsResponse, TopServicesResponse, TechnicianPerformanceResponse, StockConsumptionReportResponse, CustomerAnalyticsResponse, ServicePerformanceResponse } from './reports.types';
 export declare class ReportsService {
     /**
      * Helper to resolve and parse date range from query parameters.
@@ -22,6 +22,11 @@ export declare class ReportsService {
     getTopServices(query: DateRangeQuery & {
         limit?: number | string;
     }): Promise<TopServicesResponse>;
+    /**
+     * 4b. Service Performance Analytics Report (Best Performers, Worst Performers, Ignored 0%)
+     * Analyzes all catalog services performed in the period (default: 30 days)
+     */
+    getServicePerformance(query: DateRangeQuery): Promise<ServicePerformanceResponse>;
     /**
      * 5. Technician Performance Report
      * Strict RBAC:

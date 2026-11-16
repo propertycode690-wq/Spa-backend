@@ -20,6 +20,8 @@ router.get('/revenue', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'),
 router.get('/appointments', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => reports_controller_1.reportsController.getAppointmentAnalytics(req, res, next));
 // Top Services Report (Manager & Reception only; Technician & Cleaner blocked)
 router.get('/top-services', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => reports_controller_1.reportsController.getTopServices(req, res, next));
+// Service Performance Analytics (Best, Worst, Ignored 0%) (Manager & Reception only)
+router.get('/service-performance', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => reports_controller_1.reportsController.getServicePerformance(req, res, next));
 // Stock Consumption Analytics (Manager & Reception only; Technician & Cleaner blocked)
 router.get('/stock-consumption', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => reports_controller_1.reportsController.getStockConsumptionReport(req, res, next));
 // Customer Analytics, Loyalty Growth & Rebooking (Manager & Reception only; Technician & Cleaner blocked)

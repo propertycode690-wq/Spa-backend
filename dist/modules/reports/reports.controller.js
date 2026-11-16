@@ -62,6 +62,19 @@ class ReportsController {
             next(error);
         }
     }
+    async getServicePerformance(req, res, next) {
+        try {
+            const query = reports_validation_1.dateRangeQuerySchema.parse(req.query);
+            const result = await reports_service_1.reportsService.getServicePerformance(query);
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                data: result,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
     async getTechniciansPerformance(req, res, next) {
         try {
             const query = reports_validation_1.technicianReportQuerySchema.parse(req.query);

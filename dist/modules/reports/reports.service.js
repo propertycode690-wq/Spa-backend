@@ -21,13 +21,13 @@ class ReportsService {
             startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
             endDate = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
         }
-        else if (period === 'weekly') {
+        else if (period === 'weekly' || period === '7d') {
             startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
             startDate.setHours(0, 0, 0, 0);
             endDate = new Date(now);
             endDate.setHours(23, 59, 59, 999);
         }
-        else if (period === 'monthly') {
+        else if (period === 'monthly' || period === '30d') {
             startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
             startDate.setHours(0, 0, 0, 0);
             endDate = new Date(now);
@@ -363,6 +363,188 @@ class ReportsService {
             },
             topByRevenue,
             topByBookings,
+        };
+    }
+    /**
+     * 4b. Service Performance Analytics Report (Best Performers, Worst Performers, Ignored 0%)
+     * Analyzes all catalog services performed in the period (default: 30 days)
+     */
+    async getServicePerformance(query) {
+        const { startDate, endDate, period } = this.parseDateRange(query);
+        // 1. Fetch all active catalog services
+        const catalogServices = await database_1.default.service.findMany({
+            select: { id: true, name: true, category: true, price: true, status: true },
+            orderBy: { name: 'asc' },
+        });
+        // 2. Fetch completed invoice items in date range
+        const invoiceItems = await database_1.default.invoiceItem.findMany({
+            where: {
+                itemType: client_1.InvoiceItemType.SERVICE,
+                invoice: {
+                    status: { in: [client_1.InvoiceStatus.PAID, client_1.InvoiceStatus.PENDING_PAYMENT] },
+                    createdAt: { gte: startDate, lte: endDate },
+                },
+            },
+            select: {
+                id: true,
+                serviceId: true,
+                name: true,
+                price: true,
+                quantity: true,
+                invoice: {
+                    select: {
+                        clientId: true,
+                    },
+                },
+            },
+        });
+        // 3. Fetch completed appointment services not linked to invoice items
+        const completedAppointments = await database_1.default.appointmentService.findMany({
+            where: {
+                status: client_1.AppointmentServiceStatus.COMPLETED,
+                completedAt: { gte: startDate, lte: endDate },
+                invoiceItem: null,
+            },
+            select: {
+                id: true,
+                serviceId: true,
+                price: true,
+                service: {
+                    select: { name: true, category: true },
+                },
+                appointment: {
+                    select: {
+                        clientId: true,
+                    },
+                },
+            },
+        });
+        // Aggregation maps: keyed by normalized service identifier
+        const serviceStats = new Map();
+        // Initialize all active catalog services with 0 sales
+        for (const s of catalogServices) {
+            const normKey = s.name.trim().toLowerCase();
+            serviceStats.set(normKey, {
+                serviceId: s.id,
+                serviceName: s.name,
+                category: s.category || 'General',
+                catalogPrice: Number(s.price) || 0,
+                timesSold: 0,
+                totalRevenue: 0,
+                clientIds: new Set(),
+            });
+        }
+        // Helper to find or create stat bucket
+        const recordSale = (sId, sName, price, qty, clientId) => {
+            const cleanName = (sName || 'Spa Service').trim();
+            const normKey = cleanName.toLowerCase();
+            let stat = serviceStats.get(normKey);
+            if (!stat && sId) {
+                for (const val of serviceStats.values()) {
+                    if (val.serviceId === sId) {
+                        stat = val;
+                        break;
+                    }
+                }
+            }
+            if (!stat) {
+                stat = {
+                    serviceId: sId || normKey,
+                    serviceName: cleanName,
+                    category: 'General',
+                    catalogPrice: price,
+                    timesSold: 0,
+                    totalRevenue: 0,
+                    clientIds: new Set(),
+                };
+                serviceStats.set(normKey, stat);
+            }
+            stat.timesSold += qty;
+            stat.totalRevenue += price * qty;
+            if (clientId) {
+                stat.clientIds.add(String(clientId));
+            }
+        };
+        // Process Invoice Items
+        for (const item of invoiceItems) {
+            const p = Number(item.price) || 0;
+            const q = Math.max(1, Number(item.quantity) || 1);
+            recordSale(item.serviceId, item.name, p, q, item.invoice?.clientId);
+        }
+        // Process unlinked completed appointments
+        for (const appt of completedAppointments) {
+            const p = Number(appt.price) || 0;
+            const sName = appt.service?.name || 'Spa Service';
+            recordSale(appt.serviceId, sName, p, 1, appt.appointment?.clientId);
+        }
+        const allCalculated = Array.from(serviceStats.values());
+        const totalServiceRevenue = allCalculated.reduce((sum, s) => sum + s.totalRevenue, 0);
+        const totalTimesSold = allCalculated.reduce((sum, s) => sum + s.timesSold, 0);
+        const allClientsSet = new Set();
+        for (const s of allCalculated) {
+            s.clientIds.forEach((c) => allClientsSet.add(c));
+        }
+        // Map into ServicePerformanceItem array
+        const mappedItems = allCalculated.map((s) => {
+            const revPct = totalServiceRevenue > 0 ? Number(((s.totalRevenue / totalServiceRevenue) * 100).toFixed(1)) : 0;
+            const avgTicket = s.timesSold > 0 ? Math.round(s.totalRevenue / s.timesSold) : s.catalogPrice;
+            return {
+                serviceId: s.serviceId,
+                serviceName: s.serviceName,
+                category: s.category,
+                price: s.catalogPrice,
+                timesSold: s.timesSold,
+                totalRevenue: Math.round(s.totalRevenue),
+                uniqueClients: s.clientIds.size,
+                averageTicket: avgTicket,
+                revenuePercentage: revPct,
+            };
+        });
+        // 1. Ignored - 0% (Services with strictly 0 times sold)
+        const ignoredServices = mappedItems
+            .filter((s) => s.timesSold === 0)
+            .sort((a, b) => a.serviceName.localeCompare(b.serviceName));
+        // 2. Performing Services (timesSold > 0)
+        const performingServices = mappedItems
+            .filter((s) => s.timesSold > 0)
+            .sort((a, b) => {
+            if (b.totalRevenue !== a.totalRevenue)
+                return b.totalRevenue - a.totalRevenue;
+            return b.timesSold - a.timesSold;
+        });
+        let bestPerformers = [];
+        let worstPerformers = [];
+        if (performingServices.length <= 4) {
+            const half = Math.ceil(performingServices.length / 2);
+            bestPerformers = performingServices.slice(0, half);
+            worstPerformers = performingServices.slice(half);
+        }
+        else {
+            const midpoint = Math.ceil(performingServices.length / 2);
+            bestPerformers = performingServices.slice(0, midpoint);
+            worstPerformers = [...performingServices.slice(midpoint)].sort((a, b) => {
+                if (a.timesSold !== b.timesSold)
+                    return a.timesSold - b.timesSold;
+                return a.totalRevenue - b.totalRevenue;
+            });
+        }
+        return {
+            period,
+            dateRange: {
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
+            },
+            kpi: {
+                totalCatalogServices: catalogServices.length,
+                performingServicesCount: performingServices.length,
+                ignoredServicesCount: ignoredServices.length,
+                totalServiceRevenue: Math.round(totalServiceRevenue),
+                totalTimesSold,
+                totalUniqueClients: allClientsSet.size,
+            },
+            bestPerformers,
+            worstPerformers,
+            ignoredServices,
         };
     }
     /**

@@ -4,6 +4,7 @@ export declare class ReportsController {
     getRevenueReport(req: Request, res: Response, next: NextFunction): Promise<void>;
     getAppointmentAnalytics(req: Request, res: Response, next: NextFunction): Promise<void>;
     getTopServices(req: Request, res: Response, next: NextFunction): Promise<void>;
+    getServicePerformance(req: Request, res: Response, next: NextFunction): Promise<void>;
     getTechniciansPerformance(req: Request, res: Response, next: NextFunction): Promise<void>;
     getMyTechnicianPerformance(req: Request, res: Response, next: NextFunction): Promise<void>;
     getTechnicianById(req: Request, res: Response, next: NextFunction): Promise<void>;

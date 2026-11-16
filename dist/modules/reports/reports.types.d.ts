@@ -1,5 +1,5 @@
 import { PaymentMethod, AppointmentStatus } from '@prisma/client';
-export type ReportPeriod = 'today' | 'weekly' | 'monthly' | 'custom';
+export type ReportPeriod = 'today' | 'weekly' | 'monthly' | 'custom' | '7d' | '30d';
 export interface DateRangeQuery {
     period?: ReportPeriod;
     startDate?: string;
@@ -143,5 +143,34 @@ export interface CustomerAnalyticsResponse {
         lapsed: number;
         active: number;
     };
+}
+export interface ServicePerformanceItem {
+    serviceId: string;
+    serviceName: string;
+    category: string;
+    price: number;
+    timesSold: number;
+    totalRevenue: number;
+    uniqueClients: number;
+    averageTicket: number;
+    revenuePercentage: number;
+}
+export interface ServicePerformanceResponse {
+    period: string;
+    dateRange: {
+        startDate: string;
+        endDate: string;
+    };
+    kpi: {
+        totalCatalogServices: number;
+        performingServicesCount: number;
+        ignoredServicesCount: number;
+        totalServiceRevenue: number;
+        totalTimesSold: number;
+        totalUniqueClients: number;
+    };
+    bestPerformers: ServicePerformanceItem[];
+    worstPerformers: ServicePerformanceItem[];
+    ignoredServices: ServicePerformanceItem[];
 }
 //# sourceMappingURL=reports.types.d.ts.map

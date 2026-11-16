@@ -141,7 +141,7 @@ const DEFAULT_HOLIDAYS = [
     {
         id: 'hol-eid-al-adha',
         code: 'EID_AL_ADHA',
-        name: "Eid al-Adha / Tabaski",
+        name: "Eid al-Adha (Tabaski)",
         category: 'variable',
         variableDates: {
             '2026': '2026-05-27',
@@ -189,13 +189,20 @@ class HolidayService {
                             parsed.push(d);
                             changed = true;
                         }
-                        else if (d.variableDates) {
-                            if (!existing.variableDates)
-                                existing.variableDates = {};
-                            for (const [yr, dt] of Object.entries(d.variableDates)) {
-                                if (!existing.variableDates[yr]) {
-                                    existing.variableDates[yr] = dt;
-                                    changed = true;
+                        else {
+                            // Synchronize holiday name if updated (e.g. removing slashes)
+                            if (existing.name !== d.name && (existing.name.includes('/') || !existing.name)) {
+                                existing.name = d.name;
+                                changed = true;
+                            }
+                            if (d.variableDates) {
+                                if (!existing.variableDates)
+                                    existing.variableDates = {};
+                                for (const [yr, dt] of Object.entries(d.variableDates)) {
+                                    if (!existing.variableDates[yr]) {
+                                        existing.variableDates[yr] = dt;
+                                        changed = true;
+                                    }
                                 }
                             }
                         }
@@ -260,9 +267,10 @@ class HolidayService {
      */
     formatMessage(clientName, occasionName) {
         const name = clientName && clientName.trim() ? clientName.trim() : 'Cher Client';
+        const cleanOccasion = (occasionName || 'Special Holiday').replace(/\s*\/\s*/g, ' - ').trim();
         return exports.UNIVERSAL_HOLIDAY_TEMPLATE
             .replace('{NAME}', name)
-            .replace('{OCCASION}', occasionName);
+            .replace('{OCCASION}', cleanOccasion);
     }
     /**
      * Checks if any active holiday falls on the given date (in Africa/Douala timezone)
@@ -334,8 +342,10 @@ class HolidayService {
                 continue;
             }
             const clientName = client.name || 'Valued Client';
-            const renderedMessage = this.formatMessage(clientName, holiday.name);
-            // Meta Cloud API template metadata
+            const rawHolidayName = holiday.name || 'Special Holiday';
+            const cleanHolidayName = rawHolidayName.replace(/\s*\/\s*/g, ' - ').trim();
+            const renderedMessage = this.formatMessage(clientName, cleanHolidayName);
+            // Meta Cloud API template metadata (No slashes or invalid characters)
             const templateMetadata = {
                 template: {
                     name: exports.META_HOLIDAY_TEMPLATE_NAME,
@@ -345,7 +355,7 @@ class HolidayService {
                             type: 'body',
                             parameters: [
                                 { type: 'text', text: clientName },
-                                { type: 'text', text: holiday.name },
+                                { type: 'text', text: cleanHolidayName },
                             ],
                         },
                     ],
@@ -397,8 +407,13 @@ class HolidayService {
     async testSendGreeting(holidayCode, targetPhone, testName) {
         const list = this.getHolidays();
         const holiday = list.find((h) => h.code === holidayCode || h.id === holidayCode);
-        const holidayName = holiday ? holiday.name : 'Special Holiday';
-        const clientName = testName && testName.trim() ? testName.trim() : 'Valued Client';
+        const rawHolidayName = holiday ? holiday.name : 'Special Holiday';
+        // Remove forward slashes / because Meta WhatsApp Cloud API marketing delivery blocks / in body variables
+        const holidayName = rawHolidayName.replace(/\s*\/\s*/g, ' - ').trim();
+        const clientName = (testName && testName.trim() ? testName.trim() : 'Valued Client')
+            .replace(/[\r\n\t]/g, ' ')
+            .replace(/\s+/g, ' ')
+            .slice(0, 60);
         const message = this.formatMessage(clientName, holidayName);
         const templateMetadata = {
             template: {
@@ -415,13 +430,31 @@ class HolidayService {
                 ],
             },
         };
+        const idempotencyKey = `TEST_HOLIDAY_${Date.now()}`;
         const res = await whatsapp_adapter_1.whatsappAdapter.send({
             channel: 'WHATSAPP',
             recipient: { phone: targetPhone, name: clientName },
             content: message,
-            idempotencyKey: `TEST_HOLIDAY_${Date.now()}`,
+            idempotencyKey,
             metadata: templateMetadata,
         });
+        // Persist into WhatsApp message audit logs for complete visibility & delivery status tracking
+        try {
+            await database_1.default.whatsAppMessageLog.create({
+                data: {
+                    recipientPhone: targetPhone,
+                    message,
+                    status: res.success ? whatsapp_types_1.WhatsAppMessageStatus.SENT : whatsapp_types_1.WhatsAppMessageStatus.FAILED,
+                    failureReason: res.failureReason || null,
+                    providerMessageId: res.providerMessageId || null,
+                    idempotencyKey,
+                    sentAt: res.success ? new Date() : null,
+                },
+            });
+        }
+        catch (logErr) {
+            logger_1.logger.warn('[HolidayService] Could not persist testSend log', { error: logErr?.message });
+        }
         return {
             success: res.success,
             renderedMessage: message,

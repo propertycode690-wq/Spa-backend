@@ -42,8 +42,8 @@ router.get('/invoices/:id/receipt-status', (0, roleMiddleware_1.allowRoles)('MAN
 router.post('/triggers/celebrations', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.triggerCelebrations(req, res, next));
 // POST /api/v1/whatsapp/triggers/rebooking-reminders - Rebooking retention trigger (Manager, Reception)
 router.post('/triggers/rebooking-reminders', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.triggerRebookingReminders(req, res, next));
-// POST /api/v1/whatsapp/triggers/daily-close - Trigger Daily Close summary to Boss (Manager only)
-router.post('/triggers/daily-close', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => whatsapp_controller_1.whatsappController.triggerDailyClose(req, res, next));
+// POST /api/v1/whatsapp/triggers/daily-close - Trigger Daily Close summary to Boss (Manager, Reception)
+router.post('/triggers/daily-close', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.triggerDailyClose(req, res, next));
 // POST /api/v1/whatsapp/triggers/client-welcome - Welcome message trigger (Manager, Reception)
 router.post('/triggers/client-welcome', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => whatsapp_controller_1.whatsappController.triggerClientWelcome(req, res, next));
 // POST /api/v1/whatsapp/triggers/send - Dispatch single custom message with idempotency (Manager, Reception, Technician)
