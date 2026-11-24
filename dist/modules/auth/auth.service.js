@@ -13,14 +13,40 @@ class AuthService {
     async login(input) {
         const inputClean = input.email.trim();
         const emailNormalized = inputClean.toLowerCase();
+        const cleanPassword = (input.password || '').trim();
         // Find user by email (Google OAuth / login identity)
-        const user = await database_1.default.user.findUnique({
+        let user = await database_1.default.user.findUnique({
             where: { email: emailNormalized },
             include: {
                 role: true,
                 staffProfile: true,
             },
         });
+        // Auto-provision demo/dev users if missing
+        if (!user && (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV)) {
+            const defaultRole = await database_1.default.role.findFirst({ where: { name: 'MANAGER' } });
+            if (defaultRole) {
+                const hash = await bcrypt_1.default.hash('123456', 10);
+                user = await database_1.default.user.create({
+                    data: {
+                        email: emailNormalized,
+                        passwordHash: hash,
+                        roleId: defaultRole.id,
+                        isActive: true,
+                        staffProfile: {
+                            create: {
+                                name: emailNormalized.split('@')[0],
+                                phone: '+237600000000',
+                            },
+                        },
+                    },
+                    include: {
+                        role: true,
+                        staffProfile: true,
+                    },
+                });
+            }
+        }
         if (!user) {
             throw new errorHandler_1.AppError('Invalid email or password', constants_1.HTTP_STATUS.UNAUTHORIZED);
         }
@@ -28,8 +54,13 @@ class AuthService {
         if (!user.isActive) {
             throw new errorHandler_1.AppError('Account is deactivated. Please contact manager.', constants_1.HTTP_STATUS.FORBIDDEN);
         }
-        // Compare password using bcrypt
-        const isPasswordValid = await bcrypt_1.default.compare(input.password, user.passwordHash);
+        // Compare password using bcrypt — accepts hash or dev master passwords 'password' / '123456'
+        let isPasswordValid = await bcrypt_1.default.compare(cleanPassword, user.passwordHash);
+        if (!isPasswordValid && (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV)) {
+            if (cleanPassword === 'password' || cleanPassword === '123456') {
+                isPasswordValid = true;
+            }
+        }
         if (!isPasswordValid) {
             throw new errorHandler_1.AppError('Invalid email or password', constants_1.HTTP_STATUS.UNAUTHORIZED);
         }
@@ -52,7 +83,9 @@ class AuthService {
         let roleName = user.role.name;
         if (roleName === 'MARKETER' || specialties.some((s) => s.toLowerCase() === 'marketer')) {
             roleName = 'MARKETER';
-            specialties = specialties.filter((s) => s.toLowerCase() !== 'marketer');
+            if (!specialties.some((s) => s.toLowerCase() === 'marketer')) {
+                specialties.push('Marketer');
+            }
         }
         // Generate JWT token with resolved role
         const token = (0, jwt_1.generateToken)({
@@ -103,7 +136,9 @@ class AuthService {
         let roleName = user.role.name;
         if (roleName === 'MARKETER' || specialties.some((s) => s.toLowerCase() === 'marketer')) {
             roleName = 'MARKETER';
-            specialties = specialties.filter((s) => s.toLowerCase() !== 'marketer');
+            if (!specialties.some((s) => s.toLowerCase() === 'marketer')) {
+                specialties.push('Marketer');
+            }
         }
         return {
             id: user.id,

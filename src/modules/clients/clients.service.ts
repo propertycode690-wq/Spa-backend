@@ -5,10 +5,16 @@ import { HTTP_STATUS } from '../../config/constants';
 import {
   CreateClientInput,
   UpdateClientInput,
+  UpdateClientPreferencesInput,
   AddClientMediaInput,
   ClientQueryFilter,
   AuthContextUser,
 } from './clients.types';
+import {
+  normalizeGender,
+  normalizeLanguage,
+  normalizeHolidayPreference,
+} from './clients.validation';
 
 /**
  * Safely parse a celebration date (Birthday or Anniversary).
@@ -172,6 +178,11 @@ export class ClientsService {
     const birthday = parseCelebrationDate(data.birthday);
     const anniversary = parseCelebrationDate(data.anniversary);
 
+    // Normalize customer preferences (Phase 2A)
+    const gender = normalizeGender(data.gender);
+    const preferredLanguage = normalizeLanguage(data.preferredLanguage);
+    const holidayPreference = normalizeHolidayPreference(data.holidayPreference);
+
     // 3. Create client in database
     const client = await prisma.client.create({
       data: {
@@ -181,6 +192,9 @@ export class ClientsService {
         quartier: data.quartier ? data.quartier.trim() : null,
         birthday,
         anniversary,
+        gender,
+        preferredLanguage,
+        holidayPreference,
         source,
         introducedByEmployeeId,
         referredByClientId,
@@ -199,6 +213,26 @@ export class ClientsService {
         },
       },
     });
+
+    // Record initial preference audit log if set during registration
+    const initialPrefs = [
+      { field: 'gender', val: gender },
+      { field: 'preferredLanguage', val: preferredLanguage },
+      { field: 'holidayPreference', val: holidayPreference },
+    ];
+    for (const p of initialPrefs) {
+      if (p.val && p.val !== 'NOT_PROVIDED' && p.val !== 'FR') {
+        await prisma.clientPreferenceAuditLog.create({
+          data: {
+            clientId: client.id,
+            staffId: authUser.id,
+            field: p.field,
+            oldValue: null,
+            newValue: p.val,
+          },
+        }).catch(() => {});
+      }
+    }
 
     // 4. Create client history record: CLIENT_CREATED
     await prisma.clientHistory.create({
@@ -238,6 +272,17 @@ export class ClientsService {
       where.isActive = false;
     }
     // If rawStatus === 'ALL' or query.isActive === 'all' or empty, returns both active and inactive
+
+    // Customer segmentation & demographic query filters (Phase 2A)
+    if (query.gender && query.gender !== 'ALL') {
+      where.gender = normalizeGender(query.gender);
+    }
+    if (query.preferredLanguage && query.preferredLanguage !== 'ALL') {
+      where.preferredLanguage = normalizeLanguage(query.preferredLanguage);
+    }
+    if (query.holidayPreference && query.holidayPreference !== 'ALL') {
+      where.holidayPreference = normalizeHolidayPreference(query.holidayPreference);
+    }
 
     // Referral query filtering with role-based server-side isolation:
     // Marketers are strictly locked to their own introduced clients (req.user.id).
@@ -463,10 +508,54 @@ export class ClientsService {
       updateData.lastServiceDate = data.lastServiceDate ? new Date(data.lastServiceDate) : null;
     }
 
+    // Preference tracking & audit logging (Phase 2A)
+    const auditLogsToCreate: { field: string; oldValue: string | null; newValue: string }[] = [];
+
+    if (data.gender !== undefined) {
+      const normalizedGender = normalizeGender(data.gender);
+      if (normalizedGender !== client.gender) {
+        auditLogsToCreate.push({ field: 'gender', oldValue: client.gender, newValue: normalizedGender });
+        updateData.gender = normalizedGender;
+      }
+    }
+
+    if (data.preferredLanguage !== undefined) {
+      const normalizedLang = normalizeLanguage(data.preferredLanguage);
+      if (normalizedLang !== client.preferredLanguage) {
+        auditLogsToCreate.push({ field: 'preferredLanguage', oldValue: client.preferredLanguage, newValue: normalizedLang });
+        updateData.preferredLanguage = normalizedLang;
+      }
+    }
+
+    if (data.holidayPreference !== undefined) {
+      const normalizedHoliday = normalizeHolidayPreference(data.holidayPreference);
+      if (normalizedHoliday !== client.holidayPreference) {
+        auditLogsToCreate.push({ field: 'holidayPreference', oldValue: client.holidayPreference, newValue: normalizedHoliday });
+        updateData.holidayPreference = normalizedHoliday;
+      }
+    }
+
     const updatedClient = await prisma.client.update({
       where: { id },
       data: updateData,
     });
+
+    // Write audit records for any changed preferences
+    if (auditLogsToCreate.length > 0) {
+      for (const log of auditLogsToCreate) {
+        await prisma.clientPreferenceAuditLog.create({
+          data: {
+            clientId: id,
+            staffId: authUser.id,
+            field: log.field,
+            oldValue: log.oldValue,
+            newValue: log.newValue,
+          },
+        }).catch((err) => {
+          console.warn('[ClientsService] Could not persist preference audit log:', err?.message || err);
+        });
+      }
+    }
 
     await prisma.clientHistory.create({
       data: {
@@ -555,6 +644,64 @@ export class ClientsService {
       where: { clientId },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  /**
+   * Update client demographic preferences with audit logging (Phase 2A)
+   */
+  async updateClientPreferences(clientId: string, data: UpdateClientPreferencesInput, authUser: AuthContextUser) {
+    return this.updateClient(clientId, data, authUser);
+  }
+
+  /**
+   * Retrieve audit history of customer preference changes (Phase 2A)
+   */
+  async getPreferencesAudit(clientId: string) {
+    const client = await prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) {
+      throw new AppError('Client not found', HTTP_STATUS.NOT_FOUND);
+    }
+
+    return prisma.clientPreferenceAuditLog.findMany({
+      where: { clientId },
+      include: {
+        staff: {
+          select: {
+            id: true,
+            email: true,
+            staffProfile: { select: { name: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Module 4: Manual override of Client Type (VIP, REGULAR, NEW, PROSPECT) with mandatory reason.
+   */
+  async updateClientType(clientId: string, input: any, authUser: AuthContextUser) {
+    const { clientClassificationService } = await import('./clientClassification.service');
+    return clientClassificationService.manualOverrideClientType(clientId, input, authUser);
+  }
+
+  /**
+   * Module 4: Get Client Type classification audit trail.
+   */
+  async getClientTypeAudit(clientId: string) {
+    const { clientClassificationService } = await import('./clientClassification.service');
+    return clientClassificationService.getClientTypeAudit(clientId);
+  }
+
+  /**
+   * Module 4: Trigger classification on demand (single or all active clients).
+   */
+  async runClassification(clientId?: string) {
+    const { clientClassificationService } = await import('./clientClassification.service');
+    if (clientId) {
+      return clientClassificationService.classifyClient(clientId);
+    }
+    return clientClassificationService.classifyAllClients();
   }
 }
 

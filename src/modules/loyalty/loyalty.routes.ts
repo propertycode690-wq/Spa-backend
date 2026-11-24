@@ -37,8 +37,8 @@ router.post('/clients/:clientId/adjust', allowRoles('MANAGER'), (req, res, next)
   loyaltyController.adjustClientPoints(req, res, next)
 );
 
-// GET /api/v1/loyalty/clients/:clientId — View client loyalty balance & history (Manager, Reception, Technician)
-router.get('/clients/:clientId', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) =>
+// GET /api/v1/loyalty/clients/:clientId — View client loyalty balance & history (Manager, Reception, Technician, Marketer)
+router.get('/clients/:clientId', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) =>
   loyaltyController.getClientLoyalty(req, res, next)
 );
 

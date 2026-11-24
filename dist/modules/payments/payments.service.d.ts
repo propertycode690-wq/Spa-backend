@@ -13,8 +13,8 @@ export declare class PaymentsService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            notes: string | null;
             invoiceId: string;
+            notes: string | null;
             paidAt: Date;
             amount: import("@prisma/client/runtime/library").Decimal;
             paymentMethod: import(".prisma/client").$Enums.PaymentMethod;
@@ -35,8 +35,8 @@ export declare class PaymentsService {
                 id: string;
                 status: import(".prisma/client").$Enums.InvoiceStatus;
                 clientId: string | null;
-                total: import("@prisma/client/runtime/library").Decimal;
                 invoiceNumber: string;
+                total: import("@prisma/client/runtime/library").Decimal;
             };
             receivedBy: {
                 staffProfile: {
@@ -49,8 +49,8 @@ export declare class PaymentsService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            notes: string | null;
             invoiceId: string;
+            notes: string | null;
             paidAt: Date;
             amount: import("@prisma/client/runtime/library").Decimal;
             paymentMethod: import(".prisma/client").$Enums.PaymentMethod;
@@ -77,33 +77,47 @@ export declare class PaymentsService {
                 quartier: string | null;
                 birthday: Date | null;
                 anniversary: Date | null;
+                gender: string;
+                preferredLanguage: string;
+                holidayPreference: string;
+                clientType: string;
                 source: import(".prisma/client").$Enums.ClientSource;
                 introducedByEmployeeId: string | null;
                 referredByClientId: string | null;
                 recommendedByName: string | null;
                 recommendedByPhone: string | null;
+                lastServiceDate: Date | null;
                 recommendedByDate: Date | null;
                 firstAppointmentService: string | null;
+                isVipManuallyAssigned: boolean;
+                vipAssignedAt: Date | null;
+                lastClassificationAt: Date | null;
+                totalEligibleSpend: import("@prisma/client/runtime/library").Decimal;
+                paidVisitsCount: number;
                 noShowCount: number;
                 lastVisitAt: Date | null;
-                lastServiceDate: Date | null;
+                referredByPromoCodeId: string | null;
+                referredByInfluencerId: string | null;
             } | null;
         } & {
             id: string;
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.InvoiceStatus;
-            clientId: string | null;
-            appointmentId: string | null;
-            total: import("@prisma/client/runtime/library").Decimal;
             date: Date;
             clientName: string | null;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceNumber: string;
             clientPhone: string | null;
             subtotal: import("@prisma/client/runtime/library").Decimal;
             discount: import("@prisma/client/runtime/library").Decimal;
+            total: import("@prisma/client/runtime/library").Decimal;
             pointsEarned: number;
             pointsRedeemed: number;
+            promoCodeId: string | null;
+            promoDiscount: import("@prisma/client/runtime/library").Decimal;
+            vipDiscount: import("@prisma/client/runtime/library").Decimal;
         };
         receivedBy: {
             staffProfile: {
@@ -116,8 +130,8 @@ export declare class PaymentsService {
         id: string;
         createdAt: Date;
         updatedAt: Date;
-        notes: string | null;
         invoiceId: string;
+        notes: string | null;
         paidAt: Date;
         amount: import("@prisma/client/runtime/library").Decimal;
         paymentMethod: import(".prisma/client").$Enums.PaymentMethod;

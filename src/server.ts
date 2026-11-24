@@ -8,10 +8,11 @@ import { logger } from './utils/logger';
 import { initMediaCleanupScheduler } from './modules/media/mediaCleanup.scheduler';
 import { initWhatsAppScheduler } from './modules/whatsapp/whatsapp.scheduler';
 import { initSocialMediaScheduler } from './modules/social/social.scheduler';
+import { initClientTypeClassificationScheduler } from './modules/clients/clientType.scheduler';
 
 const PORT = env.PORT;
 
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   logger.info(`${APP_NAME} Backend running on port ${PORT}`);
   logger.info(`Timezone: ${APP_TIMEZONE} (${process.env.TZ})`);
   logger.info(`Environment: ${env.NODE_ENV}`);
@@ -41,6 +42,15 @@ app.listen(PORT, () => {
     initSocialMediaScheduler();
   } catch (err: any) {
     logger.error('Failed to initialize Social Media scheduler on startup:', {
+      error: err?.message || String(err),
+    });
+  }
+
+  // Automatically initialize Client Type classification scheduler (00:00 midnight Africa/Douala)
+  try {
+    initClientTypeClassificationScheduler();
+  } catch (err: any) {
+    logger.error('Failed to initialize Client Type classification scheduler on startup:', {
       error: err?.message || String(err),
     });
   }

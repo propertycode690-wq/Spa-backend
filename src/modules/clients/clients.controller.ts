@@ -3,6 +3,8 @@ import { clientsService } from './clients.service';
 import {
   createClientSchema,
   updateClientSchema,
+  updateClientPreferencesSchema,
+  updateClientTypeSchema,
   updateClientStatusSchema,
   addClientMediaSchema,
   clientQuerySchema,
@@ -212,6 +214,101 @@ export class ClientsController {
       res.status(HTTP_STATUS.OK).json({
         success: true,
         data: history,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updatePreferences(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = getParamId(req);
+      const validation = updateClientPreferencesSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: 'Validation failed',
+          errors: validation.error.errors.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        });
+        return;
+      }
+
+      const client = await clientsService.updateClientPreferences(id, validation.data, req.user!);
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Client preferences updated successfully',
+        data: client,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getPreferencesAudit(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = getParamId(req);
+      const audit = await clientsService.getPreferencesAudit(id);
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: audit,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async updateClientType(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = getParamId(req);
+      const validation = updateClientTypeSchema.safeParse(req.body);
+      if (!validation.success) {
+        res.status(HTTP_STATUS.BAD_REQUEST).json({
+          success: false,
+          message: 'Validation failed',
+          errors: validation.error.errors.map((e) => ({
+            field: e.path.join('.'),
+            message: e.message,
+          })),
+        });
+        return;
+      }
+
+      const result = await clientsService.updateClientType(id, validation.data, req.user!);
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: `Client type updated to ${validation.data.clientType} successfully.`,
+        data: result.client,
+        auditLog: result.auditLog,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async getClientTypeAudit(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const id = getParamId(req);
+      const audit = await clientsService.getClientTypeAudit(id);
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        data: audit,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  async runClassification(req: Request, res: Response, next: NextFunction): Promise<void> {
+    try {
+      const { clientId } = req.body || {};
+      const result = await clientsService.runClassification(clientId);
+      res.status(HTTP_STATUS.OK).json({
+        success: true,
+        message: 'Client classification executed successfully.',
+        data: result,
       });
     } catch (error) {
       next(error);

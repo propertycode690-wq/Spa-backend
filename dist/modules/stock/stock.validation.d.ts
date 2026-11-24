@@ -54,14 +54,14 @@ export declare const stockQuerySchema: z.ZodObject<{
     limit?: string | number | undefined;
     search?: string | undefined;
     isActive?: string | boolean | undefined;
-    category?: string | undefined;
     page?: string | number | undefined;
+    category?: string | undefined;
 }, {
     limit?: string | number | undefined;
     search?: string | undefined;
     isActive?: string | boolean | undefined;
-    category?: string | undefined;
     page?: string | number | undefined;
+    category?: string | undefined;
 }>;
 export declare const stockActivityQuerySchema: z.ZodObject<{
     serviceStockId: z.ZodOptional<z.ZodString>;
@@ -99,14 +99,14 @@ export declare const createRetailProductSchema: z.ZodObject<{
     quantity: z.ZodDefault<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     name: string;
-    price: number;
     category: "DRINKS" | "COSMETICS";
+    price: number;
     quantity: number;
     barcode?: string | undefined;
 }, {
     name: string;
-    price: number;
     category: "DRINKS" | "COSMETICS";
+    price: number;
     quantity?: number | undefined;
     barcode?: string | undefined;
 }>;
@@ -169,16 +169,16 @@ export declare const createDailyAuditSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     productName: string;
     photoUrl: string;
-    publicId?: string | null | undefined;
     date?: string | undefined;
+    publicId?: string | null | undefined;
     serviceStockId?: string | null | undefined;
     remarks?: string | null | undefined;
     estimatedRemaining?: string | null | undefined;
 }, {
     productName: string;
     photoUrl: string;
-    publicId?: string | null | undefined;
     date?: string | undefined;
+    publicId?: string | null | undefined;
     serviceStockId?: string | null | undefined;
     remarks?: string | null | undefined;
     estimatedRemaining?: string | null | undefined;
@@ -193,16 +193,16 @@ export declare const stockDailyAuditQuerySchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     limit?: string | number | undefined;
     status?: string | undefined;
-    technicianId?: string | undefined;
     date?: string | undefined;
     page?: string | number | undefined;
+    technicianId?: string | undefined;
     serviceStockId?: string | undefined;
 }, {
     limit?: string | number | undefined;
     status?: string | undefined;
-    technicianId?: string | undefined;
     date?: string | undefined;
     page?: string | number | undefined;
+    technicianId?: string | undefined;
     serviceStockId?: string | undefined;
 }>;
 export declare const reviewDailyAuditSchema: z.ZodObject<{

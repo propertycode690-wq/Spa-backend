@@ -1,5 +1,6 @@
 import { loyaltyService } from '../loyalty/loyalty.service';
 import { commissionsService } from '../commissions/commissions.service';
+import { influencersService } from '../influencers/influencers.service';
 import { InvoiceStatus, InvoiceItemType, AppointmentStatus, AppointmentServiceStatus, PaymentMethod, Prisma } from '@prisma/client';
 import prisma from '../../config/database';
 import { logger } from '../../utils/logger';
@@ -161,8 +162,6 @@ export class InvoicesService {
           }
 
           const combinedSubtotal = subtotal + retailSubtotal;
-          const discount = data.discount || 0;
-          const total = Math.max(0, combinedSubtotal - discount);
 
           let targetClientId = appointment ? appointment.clientId : (data.clientId || null);
 
@@ -193,6 +192,33 @@ export class InvoicesService {
             // Walk-in customers must never be added to the /clients directory!
           }
 
+          let discount = Number(data.discount || 0);
+          let resolvedPromo: any = null;
+          let promoDiscountAmount = Number(data.promoDiscount || 0);
+
+          if (data.promoCode || data.promoCodeId) {
+            const promoLookup = data.promoCodeId
+              ? await tx.promoCode.findUnique({ where: { id: data.promoCodeId }, include: { influencer: true } })
+              : await tx.promoCode.findUnique({ where: { code: (data.promoCode || '').trim().toUpperCase() }, include: { influencer: true } });
+
+            if (promoLookup) {
+              const validation = await influencersService.validatePromoCode({
+                code: promoLookup.code,
+                clientId: targetClientId || undefined,
+                clientPhone: cleanPhone || undefined,
+                subtotal: combinedSubtotal,
+              });
+
+              if (validation.valid && validation.promoCode) {
+                resolvedPromo = promoLookup;
+                promoDiscountAmount = validation.discountAmount || 0;
+                discount = Math.max(discount, promoDiscountAmount);
+              }
+            }
+          }
+
+          const total = Math.max(0, combinedSubtotal - discount);
+
           let created: any;
           if (existingInvoice) {
             // Delete existing invoice items so updated services from Shared Work / Close Service replace them
@@ -222,8 +248,42 @@ export class InvoicesService {
                 subtotal: combinedSubtotal,
                 discount,
                 total,
+                promoCodeId: resolvedPromo ? resolvedPromo.id : (data.promoCodeId || null),
+                promoDiscount: promoDiscountAmount,
+                vipDiscount: Number(data.vipDiscount || 0),
               },
             });
+          }
+
+          // If promo code applied, record usage, update usage count & set permanent first referral attribution
+          if (resolvedPromo) {
+            await tx.promoCode.update({
+              where: { id: resolvedPromo.id },
+              data: { currentUses: { increment: 1 } },
+            });
+
+            if (targetClientId) {
+              await tx.promoCodeUsage.create({
+                data: {
+                  promoCodeId: resolvedPromo.id,
+                  invoiceId: created.id,
+                  clientId: targetClientId,
+                  discountAmount: promoDiscountAmount,
+                },
+              });
+
+              // Tag permanent first referral attribution: first code only
+              const existingClient = await tx.client.findUnique({ where: { id: targetClientId } });
+              if (existingClient && !existingClient.referredByPromoCodeId) {
+                await tx.client.update({
+                  where: { id: targetClientId },
+                  data: {
+                    referredByPromoCodeId: resolvedPromo.id,
+                    referredByInfluencerId: resolvedPromo.influencerId,
+                  },
+                });
+              }
+            }
           }
 
           if (appointment) {
@@ -367,6 +427,11 @@ export class InvoicesService {
 
           // If status is PAID, create payment record(s) (supports split payments & single payment)
           if (invoiceStatus === InvoiceStatus.PAID) {
+            // Delete any existing payments for this invoice to prevent duplicates or stale single payment
+            await tx.payment.deleteMany({
+              where: { invoiceId: created.id },
+            });
+
             if (data.payments && data.payments.length > 0) {
               for (const p of data.payments) {
                 if (Number(p.amount) > 0) {
@@ -810,8 +875,28 @@ export class InvoicesService {
     const formatted = invoices.map((inv) => {
       const paidAmount = inv.payments.reduce((sum, p) => sum + Number(p.amount), 0);
       const remainingAmount = Math.max(0, Number(inv.total) - paidAmount);
+
+      let paymentMethodDisplay = 'CASH';
+      if (inv.payments && inv.payments.length > 1) {
+        paymentMethodDisplay = inv.payments
+          .map((p) => {
+            const raw = String(p.paymentMethod || '').replace(/_/g, ' ');
+            const label = raw.includes('ORANGE') ? 'ORANGE MONEY' : raw.includes('MTN') || raw.includes('MOMO') ? 'MTN MOMO' : 'CASH';
+            return `${label} (${Number(p.amount || 0).toLocaleString('en-US')})`;
+          })
+          .join(' + ');
+      } else if (inv.payments && inv.payments.length === 1) {
+        const p0 = inv.payments[0];
+        if (p0.notes && (p0.notes.includes('+') || p0.notes.toLowerCase().includes('split payment:'))) {
+          paymentMethodDisplay = p0.notes.replace(/^Split payment:\s*/i, '').trim();
+        } else {
+          paymentMethodDisplay = String(p0.paymentMethod || 'CASH').replace(/_/g, ' ');
+        }
+      }
+
       return {
         ...inv,
+        paymentMethod: paymentMethodDisplay,
         client: inv.client
           ? {
               ...inv.client,
@@ -914,8 +999,27 @@ export class InvoicesService {
     const paidAmount = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
     const remainingAmount = Math.max(0, Number(invoice.total) - paidAmount);
 
+    let paymentMethodDisplay = 'CASH';
+    if (invoice.payments && invoice.payments.length > 1) {
+      paymentMethodDisplay = invoice.payments
+        .map((p) => {
+          const raw = String(p.paymentMethod || '').replace(/_/g, ' ');
+          const label = raw.includes('ORANGE') ? 'ORANGE MONEY' : raw.includes('MTN') || raw.includes('MOMO') ? 'MTN MOMO' : 'CASH';
+          return `${label} (${Number(p.amount || 0).toLocaleString('en-US')})`;
+        })
+        .join(' + ');
+    } else if (invoice.payments && invoice.payments.length === 1) {
+      const p0 = invoice.payments[0];
+      if (p0.notes && (p0.notes.includes('+') || p0.notes.toLowerCase().includes('split payment:'))) {
+        paymentMethodDisplay = p0.notes.replace(/^Split payment:\s*/i, '').trim();
+      } else {
+        paymentMethodDisplay = String(p0.paymentMethod || 'CASH').replace(/_/g, ' ');
+      }
+    }
+
     return {
       ...invoice,
+      paymentMethod: paymentMethodDisplay,
       client: invoice.client
         ? {
             ...invoice.client,
@@ -962,6 +1066,7 @@ export class InvoicesService {
     if (data.status === InvoiceStatus.PAID) {
       await commissionsService.generateCommissionsForInvoice(updated.id);
       await loyaltyService.awardPointsForInvoice(updated.id);
+      await influencersService.generateCommissionForInvoice(updated.id);
       if (invoice.clientId) {
         await prisma.client.update({
           where: { id: invoice.clientId },

@@ -18,8 +18,8 @@ router.patch('/retail/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTI
 router.post('/retail/:id/refill', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.refillRetailProduct(req, res, next));
 // POST /api/v1/stock/retail/deduct — Deduct retail product stock on sale
 router.post('/retail/deduct', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.deductRetailStock(req, res, next));
-// GET /api/v1/stock — View service stock (Manager, Reception, Technician)
-router.get('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => stock_controller_1.stockController.getServiceStock(req, res, next));
+// GET /api/v1/stock — View service stock (Manager, Reception, Technician, Marketer)
+router.get('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => stock_controller_1.stockController.getServiceStock(req, res, next));
 // POST /api/v1/stock — Manager creates new service stock item
 router.post('/', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.createServiceStock(req, res, next));
 // ── Daily Stock Photo Audits ─────────────────────────────────────────

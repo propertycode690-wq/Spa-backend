@@ -195,6 +195,99 @@ class ClientsController {
             next(error);
         }
     }
+    async updatePreferences(req, res, next) {
+        try {
+            const id = getParamId(req);
+            const validation = clients_validation_1.updateClientPreferencesSchema.safeParse(req.body);
+            if (!validation.success) {
+                res.status(constants_1.HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Validation failed',
+                    errors: validation.error.errors.map((e) => ({
+                        field: e.path.join('.'),
+                        message: e.message,
+                    })),
+                });
+                return;
+            }
+            const client = await clients_service_1.clientsService.updateClientPreferences(id, validation.data, req.user);
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Client preferences updated successfully',
+                data: client,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async getPreferencesAudit(req, res, next) {
+        try {
+            const id = getParamId(req);
+            const audit = await clients_service_1.clientsService.getPreferencesAudit(id);
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                data: audit,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async updateClientType(req, res, next) {
+        try {
+            const id = getParamId(req);
+            const validation = clients_validation_1.updateClientTypeSchema.safeParse(req.body);
+            if (!validation.success) {
+                res.status(constants_1.HTTP_STATUS.BAD_REQUEST).json({
+                    success: false,
+                    message: 'Validation failed',
+                    errors: validation.error.errors.map((e) => ({
+                        field: e.path.join('.'),
+                        message: e.message,
+                    })),
+                });
+                return;
+            }
+            const result = await clients_service_1.clientsService.updateClientType(id, validation.data, req.user);
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                message: `Client type updated to ${validation.data.clientType} successfully.`,
+                data: result.client,
+                auditLog: result.auditLog,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async getClientTypeAudit(req, res, next) {
+        try {
+            const id = getParamId(req);
+            const audit = await clients_service_1.clientsService.getClientTypeAudit(id);
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                data: audit,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    async runClassification(req, res, next) {
+        try {
+            const { clientId } = req.body || {};
+            const result = await clients_service_1.clientsService.runClassification(clientId);
+            res.status(constants_1.HTTP_STATUS.OK).json({
+                success: true,
+                message: 'Client classification executed successfully.',
+                data: result,
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
 }
 exports.ClientsController = ClientsController;
 exports.clientsController = new ClientsController();

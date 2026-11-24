@@ -65,6 +65,7 @@ const social_routes_1 = __importDefault(require("./modules/social/social.routes"
 const feedback_routes_1 = require("./modules/feedback/feedback.routes");
 const penalties_routes_1 = __importDefault(require("./modules/penalties/penalties.routes"));
 const job_seekers_routes_1 = __importDefault(require("./modules/job-seekers/job-seekers.routes"));
+const influencers_routes_1 = __importDefault(require("./modules/influencers/influencers.routes"));
 const path_1 = __importDefault(require("path"));
 const app = (0, express_1.default)();
 // ==================================================
@@ -170,6 +171,7 @@ app.use('/api/v1/client-feedback', feedback_routes_1.clientFeedbackRouter);
 app.use('/api/v1/feedback', feedback_routes_1.feedbackRouter);
 app.use('/api/v1/penalties', penalties_routes_1.default);
 app.use('/api/v1/job-seekers', job_seekers_routes_1.default);
+app.use('/api/v1/influencers', influencers_routes_1.default);
 // ==================================================
 // Error Handling Middleware
 // ==================================================

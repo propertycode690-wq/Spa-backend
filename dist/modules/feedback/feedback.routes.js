@@ -15,7 +15,7 @@ exports.publicFeedbackRouter.post('/:token', (req, res, next) => feedback_contro
 exports.clientFeedbackRouter = (0, express_1.Router)();
 exports.clientFeedbackRouter.use(authMiddleware_1.authMiddleware);
 // GET /api/v1/client-feedback — View all feedback entries
-exports.clientFeedbackRouter.get('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => feedback_controller_1.feedbackController.getAll(req, res, next));
+exports.clientFeedbackRouter.get('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) => feedback_controller_1.feedbackController.getAll(req, res, next));
 // Internal feedback router (for token generation)
 exports.feedbackRouter = (0, express_1.Router)();
 exports.feedbackRouter.use(authMiddleware_1.authMiddleware);

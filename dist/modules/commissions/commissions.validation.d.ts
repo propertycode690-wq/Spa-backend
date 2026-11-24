@@ -14,15 +14,15 @@ export declare const commissionQuerySchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     limit?: string | number | undefined;
     status?: "PENDING" | "PAID" | "APPROVED" | "ADJUSTED" | undefined;
-    technicianId?: string | undefined;
     page?: string | number | undefined;
+    technicianId?: string | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;
 }, {
     limit?: string | number | undefined;
     status?: "PENDING" | "PAID" | "APPROVED" | "ADJUSTED" | undefined;
-    technicianId?: string | undefined;
     page?: string | number | undefined;
+    technicianId?: string | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;
 }>;

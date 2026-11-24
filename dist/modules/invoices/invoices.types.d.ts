@@ -8,6 +8,10 @@ export interface CreateInvoiceInput {
     date?: string | Date;
     invoiceNumber?: string;
     discount?: number;
+    promoCode?: string | null;
+    promoCodeId?: string | null;
+    promoDiscount?: number;
+    vipDiscount?: number;
     status?: InvoiceStatus;
     paymentMethod?: PaymentMethod;
     payments?: {
@@ -38,6 +42,10 @@ export interface AddInvoiceItemInput {
 }
 export interface UpdateInvoiceInput {
     discount?: number;
+    promoCode?: string | null;
+    promoCodeId?: string | null;
+    promoDiscount?: number;
+    vipDiscount?: number;
     status?: InvoiceStatus;
     pointsRedeemed?: number;
     pointsEarned?: number;

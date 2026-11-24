@@ -10,6 +10,11 @@ export declare class ClientsController {
     deleteClient(req: Request, res: Response, next: NextFunction): Promise<void>;
     addClientMedia(req: Request, res: Response, next: NextFunction): Promise<void>;
     getClientHistory(req: Request, res: Response, next: NextFunction): Promise<void>;
+    updatePreferences(req: Request, res: Response, next: NextFunction): Promise<void>;
+    getPreferencesAudit(req: Request, res: Response, next: NextFunction): Promise<void>;
+    updateClientType(req: Request, res: Response, next: NextFunction): Promise<void>;
+    getClientTypeAudit(req: Request, res: Response, next: NextFunction): Promise<void>;
+    runClassification(req: Request, res: Response, next: NextFunction): Promise<void>;
 }
 export declare const clientsController: ClientsController;
 //# sourceMappingURL=clients.controller.d.ts.map

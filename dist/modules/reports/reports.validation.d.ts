@@ -4,11 +4,11 @@ export declare const dateRangeQuerySchema: z.ZodObject<{
     startDate: z.ZodOptional<z.ZodString>;
     endDate: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    period?: "custom" | "today" | "weekly" | "monthly" | "7d" | "30d" | undefined;
+    period?: "custom" | "7d" | "today" | "weekly" | "monthly" | "30d" | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;
 }, {
-    period?: "custom" | "today" | "weekly" | "monthly" | "7d" | "30d" | undefined;
+    period?: "custom" | "7d" | "today" | "weekly" | "monthly" | "30d" | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;
 }>;
@@ -20,12 +20,12 @@ export declare const topServicesQuerySchema: z.ZodObject<{
     limit: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodNumber]>>;
 }, "strip", z.ZodTypeAny, {
     limit?: string | number | undefined;
-    period?: "custom" | "today" | "weekly" | "monthly" | "7d" | "30d" | undefined;
+    period?: "custom" | "7d" | "today" | "weekly" | "monthly" | "30d" | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;
 }, {
     limit?: string | number | undefined;
-    period?: "custom" | "today" | "weekly" | "monthly" | "7d" | "30d" | undefined;
+    period?: "custom" | "7d" | "today" | "weekly" | "monthly" | "30d" | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;
 }>;
@@ -37,12 +37,12 @@ export declare const technicianReportQuerySchema: z.ZodObject<{
     technicianId: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     technicianId?: string | undefined;
-    period?: "custom" | "today" | "weekly" | "monthly" | "7d" | "30d" | undefined;
+    period?: "custom" | "7d" | "today" | "weekly" | "monthly" | "30d" | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;
 }, {
     technicianId?: string | undefined;
-    period?: "custom" | "today" | "weekly" | "monthly" | "7d" | "30d" | undefined;
+    period?: "custom" | "7d" | "today" | "weekly" | "monthly" | "30d" | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;
 }>;

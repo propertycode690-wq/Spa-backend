@@ -64,16 +64,16 @@ export declare class LoyaltyService {
         history: ({
             invoice: {
                 id: string;
-                total: Prisma.Decimal;
                 invoiceNumber: string;
+                total: Prisma.Decimal;
             } | null;
         } & {
             id: string;
             createdAt: Date;
             type: import(".prisma/client").$Enums.LoyaltyTransactionType;
             source: string | null;
-            clientId: string;
             date: Date;
+            clientId: string;
             invoiceId: string | null;
             points: number;
             balanceAfter: number;
@@ -90,8 +90,8 @@ export declare class LoyaltyService {
             createdAt: Date;
             type: import(".prisma/client").$Enums.LoyaltyTransactionType;
             source: string | null;
-            clientId: string;
             date: Date;
+            clientId: string;
             invoiceId: string | null;
             points: number;
             balanceAfter: number;
@@ -129,8 +129,8 @@ export declare class LoyaltyService {
             createdAt: Date;
             type: import(".prisma/client").$Enums.LoyaltyTransactionType;
             source: string | null;
-            clientId: string;
             date: Date;
+            clientId: string;
             invoiceId: string | null;
             points: number;
             balanceAfter: number;

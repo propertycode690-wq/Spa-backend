@@ -5,12 +5,12 @@ export declare const createAppointmentServiceItemSchema: z.ZodObject<{
     price: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
     serviceId: string;
-    technicianId?: string | undefined;
     price?: number | undefined;
+    technicianId?: string | undefined;
 }, {
     serviceId: string;
-    technicianId?: string | undefined;
     price?: number | undefined;
+    technicianId?: string | undefined;
 }>;
 export declare const appointmentTimeSchema: z.ZodPipeline<z.ZodEffects<z.ZodString, string, string>, z.ZodEffects<z.ZodString, string, string>>;
 export declare const createAppointmentSchema: z.ZodObject<{
@@ -25,33 +25,33 @@ export declare const createAppointmentSchema: z.ZodObject<{
         price: z.ZodOptional<z.ZodNumber>;
     }, "strip", z.ZodTypeAny, {
         serviceId: string;
-        technicianId?: string | undefined;
         price?: number | undefined;
+        technicianId?: string | undefined;
     }, {
         serviceId: string;
-        technicianId?: string | undefined;
         price?: number | undefined;
+        technicianId?: string | undefined;
     }>, "many">;
 }, "strip", z.ZodTypeAny, {
     clientId: string;
-    appointmentDate: string;
     mainTechnicianId: string;
+    appointmentDate: string;
     appointmentTime: string;
     services: {
         serviceId: string;
-        technicianId?: string | undefined;
         price?: number | undefined;
+        technicianId?: string | undefined;
     }[];
     notes?: string | null | undefined;
 }, {
     clientId: string;
-    appointmentDate: string;
     mainTechnicianId: string;
+    appointmentDate: string;
     appointmentTime: string;
     services: {
         serviceId: string;
-        technicianId?: string | undefined;
         price?: number | undefined;
+        technicianId?: string | undefined;
     }[];
     notes?: string | null | undefined;
 }>;
@@ -63,15 +63,15 @@ export declare const updateAppointmentSchema: z.ZodObject<{
     lateMinutes: z.ZodNullable<z.ZodOptional<z.ZodNumber>>;
     noShowReason: z.ZodNullable<z.ZodOptional<z.ZodString>>;
 }, "strip", z.ZodTypeAny, {
-    appointmentDate?: string | undefined;
     mainTechnicianId?: string | undefined;
+    appointmentDate?: string | undefined;
     appointmentTime?: string | undefined;
     notes?: string | null | undefined;
     lateMinutes?: number | null | undefined;
     noShowReason?: string | null | undefined;
 }, {
-    appointmentDate?: string | undefined;
     mainTechnicianId?: string | undefined;
+    appointmentDate?: string | undefined;
     appointmentTime?: string | undefined;
     notes?: string | null | undefined;
     lateMinutes?: number | null | undefined;
@@ -110,16 +110,16 @@ export declare const appointmentQuerySchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     limit?: string | number | undefined;
     status?: "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "LATE" | "NO_SHOW" | "CANCELLED" | undefined;
-    clientId?: string | undefined;
-    technicianId?: string | undefined;
     date?: string | undefined;
     page?: string | number | undefined;
+    clientId?: string | undefined;
+    technicianId?: string | undefined;
 }, {
     limit?: string | number | undefined;
     status?: "SCHEDULED" | "IN_PROGRESS" | "COMPLETED" | "LATE" | "NO_SHOW" | "CANCELLED" | undefined;
-    clientId?: string | undefined;
-    technicianId?: string | undefined;
     date?: string | undefined;
     page?: string | number | undefined;
+    clientId?: string | undefined;
+    technicianId?: string | undefined;
 }>;
 //# sourceMappingURL=appointments.validation.d.ts.map

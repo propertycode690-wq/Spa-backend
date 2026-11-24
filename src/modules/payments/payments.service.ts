@@ -1,5 +1,6 @@
 import { loyaltyService } from '../loyalty/loyalty.service';
 import { commissionsService } from '../commissions/commissions.service';
+import { influencersService } from '../influencers/influencers.service';
 import { PaymentMethod, InvoiceStatus } from '@prisma/client';
 import prisma from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
@@ -74,6 +75,9 @@ export class PaymentsService {
 
         // Phase 19: Award loyalty points upon invoice PAID
         await loyaltyService.awardPointsForInvoice(invoice.id, tx);
+
+        // Phase 2C/2D: Generate influencer commission upon invoice PAID
+        await influencersService.generateCommissionForInvoice(invoice.id, tx);
 
         // Update Client lastVisitAt
         if (invoice.clientId) {

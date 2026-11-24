@@ -22,7 +22,7 @@ export const clientFeedbackRouter = Router();
 clientFeedbackRouter.use(authMiddleware);
 
 // GET /api/v1/client-feedback — View all feedback entries
-clientFeedbackRouter.get('/', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+clientFeedbackRouter.get('/', allowRoles('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) =>
   feedbackController.getAll(req, res, next)
 );
 

@@ -36,6 +36,86 @@ Thank you for being part of our family. We truly appreciate your trust and suppo
 Warm wishes,
 Team OMEGA SPA ❤️`;
 
+export const UNIVERSAL_HOLIDAY_TEMPLATE_EN = `Hi {NAME},
+
+Happy {OCCASION} from OMEGA SPA! 🌸 Wishing you and your loved ones happiness, peace, good health and joy.
+
+Thank you for being part of our family. We truly appreciate your trust and support.
+
+Warm wishes,
+Team OMEGA SPA ❤️`;
+
+export const UNIVERSAL_HOLIDAY_TEMPLATE_FR = `Bonjour {NAME},
+
+Joyeux {OCCASION} de la part de toute l'équipe d'OMEGA SPA ! 🌸 Nous vous souhaitons, ainsi qu'à vos proches, bonheur, paix, santé et prospérité.
+
+Merci de faire partie de notre famille. Nous apprécions grandement votre confiance et votre fidélité.
+
+Chaleureusement,
+L'équipe OMEGA SPA ❤️`;
+
+export const CHRISTIAN_HOLIDAY_CODES = new Set([
+  'CHRISTMAS',
+  'CHRISTMAS_DAY',
+  'GOOD_FRIDAY',
+  'EASTER',
+  'EASTER_SUNDAY',
+  'ASSUMPTION',
+  'ASSUMPTION_DAY',
+  'ASCENSION',
+  'ASCENSION_DAY',
+]);
+
+export const MUSLIM_HOLIDAY_CODES = new Set([
+  'EID',
+  'EID_AL_FITR',
+  'EID_AL_ADHA',
+  'TABASKI',
+]);
+
+/**
+ * Validates whether a client is eligible for a specific holiday campaign based on:
+ * - Module 1: Gender targeting (Mother's Day -> Female/Prefer Not To Say; Father's Day -> Male/Prefer Not To Say)
+ * - Module 3: Religious preference (Christian -> Christian holidays; Muslim -> Muslim holidays; Neutral/Not Provided -> Never religious)
+ */
+export function isClientEligibleForHoliday(
+  client: { gender?: string | null; holidayPreference?: string | null },
+  holidayCode: string
+): { eligible: boolean; reason?: string } {
+  const holUpper = holidayCode.toUpperCase();
+  const pref = (client.holidayPreference || 'NOT_PROVIDED').toUpperCase();
+  const gender = (client.gender || 'NOT_PROVIDED').toUpperCase();
+
+  // 1. Gender-specific campaign targeting
+  if (holUpper === 'MOTHERS_DAY') {
+    if (gender !== 'FEMALE' && gender !== 'PREFER_NOT_TO_SAY') {
+      return { eligible: false, reason: "Mother's Day targets Female and Prefer Not To Say clients" };
+    }
+  } else if (holUpper === 'FATHERS_DAY') {
+    if (gender !== 'MALE' && gender !== 'PREFER_NOT_TO_SAY') {
+      return { eligible: false, reason: "Father's Day targets Male and Prefer Not To Say clients" };
+    }
+  }
+
+  // 2. Religious campaign restrictions
+  const isChristian = CHRISTIAN_HOLIDAY_CODES.has(holUpper);
+  const isMuslim = MUSLIM_HOLIDAY_CODES.has(holUpper);
+
+  if (isChristian) {
+    // Never send religious campaigns to Neutral Only or Not Provided
+    if (pref !== 'CHRISTIAN' && pref !== 'BOTH') {
+      return { eligible: false, reason: `Christian holiday sent only to Christian or Both preferences (client is ${pref})` };
+    }
+  } else if (isMuslim) {
+    // Never send religious campaigns to Neutral Only or Not Provided
+    if (pref !== 'MUSLIM' && pref !== 'BOTH') {
+      return { eligible: false, reason: `Muslim holiday sent only to Muslim or Both preferences (client is ${pref})` };
+    }
+  }
+
+  return { eligible: true };
+}
+
 export const META_HOLIDAY_TEMPLATE_NAME = 'omega_holiday_greeting';
 
 // Default 24 holidays specified by OMEGA SPA
@@ -283,14 +363,28 @@ export class HolidayService {
   }
 
   /**
-   * Format message using Universal Template
+   * Format message using Universal Template with client preferred language (FR, EN, or BOTH)
    */
-  formatMessage(clientName: string, occasionName: string): string {
-    const name = clientName && clientName.trim() ? clientName.trim() : 'Cher Client';
+  formatMessage(clientName: string, occasionName: string, lang: 'EN' | 'FR' | 'BOTH' = 'FR'): string {
+    const isEn = lang === 'EN';
+    const isBoth = lang === 'BOTH';
     const cleanOccasion = (occasionName || 'Special Holiday').replace(/\s*\/\s*/g, ' - ').trim();
-    return UNIVERSAL_HOLIDAY_TEMPLATE
-      .replace('{NAME}', name)
-      .replace('{OCCASION}', cleanOccasion);
+
+    if (isBoth) {
+      const frName = clientName && clientName.trim() ? clientName.trim() : 'Cher(e) Client(e)';
+      const enName = clientName && clientName.trim() ? clientName.trim() : 'Valued Client';
+      const frText = UNIVERSAL_HOLIDAY_TEMPLATE_FR.replace('{NAME}', frName).replace('{OCCASION}', cleanOccasion);
+      const enText = UNIVERSAL_HOLIDAY_TEMPLATE_EN.replace('{NAME}', enName).replace('{OCCASION}', cleanOccasion);
+      return `${frText}\n\n━━━━━━━━━━━━━━\n${enText}`;
+    }
+
+    if (isEn) {
+      const name = clientName && clientName.trim() ? clientName.trim() : 'Valued Client';
+      return UNIVERSAL_HOLIDAY_TEMPLATE_EN.replace('{NAME}', name).replace('{OCCASION}', cleanOccasion);
+    }
+
+    const name = clientName && clientName.trim() ? clientName.trim() : 'Cher(e) Client(e)';
+    return UNIVERSAL_HOLIDAY_TEMPLATE_FR.replace('{NAME}', name).replace('{OCCASION}', cleanOccasion);
   }
 
   /**
@@ -325,14 +419,19 @@ export class HolidayService {
   }
 
   /**
-   * Dispatches greetings for a specific holiday to all clients
-   * Strict Idempotency: HOLIDAY_{code}_{year}_{clientId} prevents duplicate sending!
+   * Dispatches greetings for a specific holiday to all eligible clients
+   * Enforces:
+   * 1. Religious preference filtering (never send religious campaigns to Neutral Only or Not Provided)
+   * 2. Gender targeting (Mother's Day -> Female/Prefer Not To Say; Father's Day -> Male/Prefer Not To Say)
+   * 3. Preferred language (FR, EN, or BOTH)
+   * 4. Strict Idempotency: HOLIDAY_{code}_{year}_{clientId} prevents duplicate sending!
    */
   async dispatchHolidayGreetings(holidayCode: string, year: number): Promise<{
     holidayName: string;
     totalTargeted: number;
     sentCount: number;
     alreadySentCount: number;
+    skippedCount: number;
     failedCount: number;
   }> {
     const list = this.getHolidays();
@@ -341,7 +440,7 @@ export class HolidayService {
       throw new Error(`Holiday not found with code: ${holidayCode}`);
     }
 
-    // Fetch all active clients with a phone number
+    // Fetch all active clients with a phone number and their preference attributes
     const clients = await prisma.client.findMany({
       where: {
         OR: [
@@ -354,16 +453,27 @@ export class HolidayService {
         name: true,
         phone: true,
         whatsapp: true,
+        gender: true,
+        preferredLanguage: true,
+        holidayPreference: true,
       },
     });
 
     let sentCount = 0;
     let alreadySentCount = 0;
+    let skippedCount = 0;
     let failedCount = 0;
 
     for (const client of clients) {
       const recipientPhone = (client.whatsapp || client.phone || '').trim();
       if (!recipientPhone) continue;
+
+      // Check eligibility (Gender targeting and religious campaign restrictions)
+      const eligibility = isClientEligibleForHoliday(client, holiday.code);
+      if (!eligibility.eligible) {
+        skippedCount++;
+        continue;
+      }
 
       const idempotencyKey = `HOLIDAY_${holiday.code}_${year}_${client.id}`;
 
@@ -380,13 +490,16 @@ export class HolidayService {
       const clientName = client.name || 'Valued Client';
       const rawHolidayName = holiday.name || 'Special Holiday';
       const cleanHolidayName = rawHolidayName.replace(/\s*\/\s*/g, ' - ').trim();
-      const renderedMessage = this.formatMessage(clientName, cleanHolidayName);
 
-      // Meta Cloud API template metadata (No slashes or invalid characters)
+      const rawLang = String(client.preferredLanguage || 'FR').toUpperCase();
+      const clientLang: 'EN' | 'FR' | 'BOTH' = rawLang === 'EN' ? 'EN' : rawLang === 'BOTH' ? 'BOTH' : 'FR';
+      const renderedMessage = this.formatMessage(clientName, cleanHolidayName, clientLang);
+
+      // Meta Cloud API template metadata
       const templateMetadata = {
         template: {
           name: META_HOLIDAY_TEMPLATE_NAME,
-          language: 'en',
+          language: clientLang === 'EN' ? 'en' : 'fr',
           components: [
             {
               type: 'body',
@@ -437,6 +550,7 @@ export class HolidayService {
       totalTargeted: clients.length,
       sentCount,
       alreadySentCount,
+      skippedCount,
       failedCount,
     };
   }

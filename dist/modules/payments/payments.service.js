@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.paymentsService = exports.PaymentsService = void 0;
 const loyalty_service_1 = require("../loyalty/loyalty.service");
 const commissions_service_1 = require("../commissions/commissions.service");
+const influencers_service_1 = require("../influencers/influencers.service");
 const client_1 = require("@prisma/client");
 const database_1 = __importDefault(require("../../config/database"));
 const errorHandler_1 = require("../../middleware/errorHandler");
@@ -66,6 +67,8 @@ class PaymentsService {
                 await commissions_service_1.commissionsService.generateCommissionsForInvoice(invoice.id, tx);
                 // Phase 19: Award loyalty points upon invoice PAID
                 await loyalty_service_1.loyaltyService.awardPointsForInvoice(invoice.id, tx);
+                // Phase 2C/2D: Generate influencer commission upon invoice PAID
+                await influencers_service_1.influencersService.generateCommissionForInvoice(invoice.id, tx);
                 // Update Client lastVisitAt
                 if (invoice.clientId) {
                     await tx.client.update({

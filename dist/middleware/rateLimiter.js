@@ -13,10 +13,10 @@ const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
  * 2. authLimiter:    Moderate — 20 requests per 15 minutes per IP (sensitive auth endpoints)
  * 3. apiLimiter:     General — 100 requests per 1 minute per IP (general API protection)
  */
-// Strict rate limit for login endpoint — prevents brute-force password attacks
+// Strict rate limit for login endpoint — prevents brute-force password attacks (relaxed in development)
 exports.loginLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 login attempts per window
+    max: process.env.NODE_ENV === 'development' ? 1000 : 5, // Relaxed for local testing
     message: {
         success: false,
         message: 'Too many login attempts. Please try again after 15 minutes.',
@@ -28,7 +28,7 @@ exports.loginLimiter = (0, express_rate_limit_1.default)({
 // Moderate rate limit for sensitive auth-related endpoints
 exports.authLimiter = (0, express_rate_limit_1.default)({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 20, // 20 requests per window
+    max: process.env.NODE_ENV === 'development' ? 5000 : 20, // Relaxed in dev
     message: {
         success: false,
         message: 'Too many requests to authentication endpoints. Please try again later.',
@@ -39,7 +39,7 @@ exports.authLimiter = (0, express_rate_limit_1.default)({
 // General API rate limit — protects all routes from abuse/DoS
 exports.apiLimiter = (0, express_rate_limit_1.default)({
     windowMs: 1 * 60 * 1000, // 1 minute
-    max: 100, // 100 requests per minute per IP
+    max: process.env.NODE_ENV === 'development' ? 10000 : 100, // Relaxed in dev
     message: {
         success: false,
         message: 'Too many requests. Please slow down and try again in a minute.',

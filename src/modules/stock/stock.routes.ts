@@ -37,8 +37,8 @@ router.post('/retail/deduct', allowRoles('MANAGER', 'RECEPTION'), (req, res, nex
   stockController.deductRetailStock(req, res, next)
 );
 
-// GET /api/v1/stock — View service stock (Manager, Reception, Technician)
-router.get('/', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) =>
+// GET /api/v1/stock — View service stock (Manager, Reception, Technician, Marketer)
+router.get('/', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) =>
   stockController.getServiceStock(req, res, next)
 );
 

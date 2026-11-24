@@ -152,6 +152,10 @@ enum WhatsAppAutomationType {
   DAILY_SUMMARY
   DAILY_CLOSE_BOSS
   CLIENT_WELCOME
+  NEW_CLIENT_WELCOME
+  NEW_CLIENT_SECOND_OFFER
+  REGULAR_WIN_BACK
+  VIP_EXCLUSIVE_OFFER
 }
 
 enum WhatsAppMessageStatus {
@@ -225,6 +229,9 @@ model User {
   createdJobSeekers             JobSeeker[]          @relation("JobSeekersCreatedBy")
   technicianStockAudits         ServiceStockDailyAudit[] @relation("TechnicianDailyStockAudits")
   reviewedStockAudits           ServiceStockDailyAudit[] @relation("ReviewedDailyStockAudits")
+  recordedPreferenceAudits      ClientPreferenceAuditLog[] @relation("PreferenceAuditStaff")
+  recordedClientTypeAudits      ClientTypeAuditLog[]     @relation("ClientTypeAuditStaff")
+  recordedInfluencerPayouts     InfluencerPayout[]       @relation("InfluencerPayoutPaidBy")
 
   @@index([roleId])
 }
@@ -266,6 +273,15 @@ model Client {
   recommendedByPhone      String?
   recommendedByDate       DateTime?            @db.Date
   firstAppointmentService String?
+  gender                  String               @default("NOT_PROVIDED")
+  preferredLanguage       String               @default("FR")
+  holidayPreference       String               @default("NOT_PROVIDED")
+  clientType              String               @default("PROSPECT")
+  isVipManuallyAssigned   Boolean              @default(false)
+  vipAssignedAt           DateTime?
+  lastClassificationAt    DateTime?
+  totalEligibleSpend      Decimal              @default(0) @db.Decimal(12, 2)
+  paidVisitsCount         Int                  @default(0)
   noShowCount             Int                  @default(0)
   lastVisitAt             DateTime?
   lastServiceDate         DateTime?
@@ -281,6 +297,14 @@ model Client {
   loyaltyTransactions     LoyaltyTransaction[]
   feedbacks               ClientFeedback[]
   whatsAppMessages        WhatsAppMessageLog[]
+  preferenceAuditLogs     ClientPreferenceAuditLog[]
+  typeAuditLogs           ClientTypeAuditLog[]
+  referredByPromoCodeId   String?
+  referredByPromoCode     PromoCode?           @relation("ClientReferredPromoCode", fields: [referredByPromoCodeId], references: [id], onDelete: SetNull)
+  referredByInfluencerId  String?
+  referredByInfluencer    Influencer?          @relation("ClientReferredInfluencer", fields: [referredByInfluencerId], references: [id], onDelete: SetNull)
+  promoCodeUsages         PromoCodeUsage[]
+  influencerCommissions   InfluencerCommission[]
 
   @@index([phone])
   @@index([whatsapp])
@@ -288,6 +312,10 @@ model Client {
   @@index([referredByClientId])
   @@index([status])
   @@index([isActive])
+  @@index([gender])
+  @@index([preferredLanguage])
+  @@index([holidayPreference])
+  @@index([clientType])
 }
 
 
@@ -400,6 +428,10 @@ model Invoice {
   total                 Decimal                @default(0) @db.Decimal(10, 2)
   pointsEarned          Int                    @default(0)
   pointsRedeemed        Int                    @default(0)
+  promoCodeId           String?
+  promoCode             PromoCode?             @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
+  promoDiscount         Decimal                @default(0) @db.Decimal(10, 2)
+  vipDiscount           Decimal                @default(0) @db.Decimal(10, 2)
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   items                 InvoiceItem[]
@@ -408,10 +440,13 @@ model Invoice {
   loyaltyTransactions   LoyaltyTransaction[]
   technicianCommissions TechnicianCommission[]
   whatsAppMessages      WhatsAppMessageLog[]
+  promoCodeUsages       PromoCodeUsage[]
+  influencerCommissions InfluencerCommission[]
 
   @@index([clientId])
   @@index([status])
   @@index([date])
+  @@index([promoCodeId])
 }
 
 model InvoiceItem {
@@ -722,13 +757,15 @@ model LoyaltyTransaction {
 }
 
 model WhatsAppAutomation {
-  id        String                 @id @default(uuid())
-  type      WhatsAppAutomationType @unique
-  template  String                 @db.Text
-  timing    String?
-  isActive  Boolean                @default(true)
-  createdAt DateTime               @default(now())
-  updatedAt DateTime               @updatedAt
+  id         String                 @id @default(uuid())
+  type       WhatsAppAutomationType @unique
+  template   String                 @db.Text
+  templateEn String?                @db.Text
+  templateFr String?                @db.Text
+  timing     String?
+  isActive   Boolean                @default(true)
+  createdAt  DateTime               @default(now())
+  updatedAt  DateTime               @updatedAt
 
   @@index([type])
   @@index([isActive])
@@ -941,4 +978,166 @@ model JobSeeker {
   @@index([appliedDate])
 }
 
+model ClientPreferenceAuditLog {
+  id        String   @id @default(uuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  staffId   String?
+  staff     User?    @relation("PreferenceAuditStaff", fields: [staffId], references: [id], onDelete: SetNull)
+  field     String
+  oldValue  String?
+  newValue  String
+  createdAt DateTime @default(now())
 
+  @@index([clientId])
+  @@index([staffId])
+  @@index([createdAt])
+}
+
+model ClientTypeAuditLog {
+  id        String   @id @default(uuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  staffId   String?
+  staff     User?    @relation("ClientTypeAuditStaff", fields: [staffId], references: [id], onDelete: SetNull)
+  oldType   String?
+  newType   String
+  reason    String   @db.Text
+  isManual  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+  @@index([staffId])
+  @@index([createdAt])
+  @@index([newType])
+}
+
+
+
+
+
+enum InfluencerStatus {
+  ACTIVE
+  PAUSED
+  BLOCKED
+}
+
+enum InfluencerCommissionStatus {
+  PENDING
+  APPROVED
+  PAID
+  REVERSED
+}
+
+enum InfluencerPayoutMethod {
+  MOMO
+  ORANGE_MONEY
+  BANK
+}
+
+model Influencer {
+  id              String                  @id @default(uuid())
+  name            String
+  phone           String                  @unique
+  instagram       String?
+  notes           String?                 @db.Text
+  status          InfluencerStatus        @default(ACTIVE)
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+  promoCodes      PromoCode[]
+  commissions     InfluencerCommission[]
+  payouts         InfluencerPayout[]
+  referredClients Client[]                @relation("ClientReferredInfluencer")
+
+  @@index([phone])
+  @@index([status])
+}
+
+model PromoCode {
+  id                 String                  @id @default(uuid())
+  influencerId       String
+  influencer         Influencer              @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+  code               String                  @unique
+  discountPercent    Decimal                 @db.Decimal(5, 2)
+  commissionPercent  Decimal                 @db.Decimal(5, 2)
+  startDate          DateTime?
+  endDate            DateTime?
+  maxUses            Int?
+  currentUses        Int                     @default(0)
+  allowRepeatClient  Boolean                 @default(false)
+  stackableWithVip   Boolean                 @default(false)
+  isActive           Boolean                 @default(true)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  usages             PromoCodeUsage[]
+  commissions        InfluencerCommission[]
+  invoices           Invoice[]
+  referredClients    Client[]                @relation("ClientReferredPromoCode")
+
+  @@index([influencerId])
+  @@index([code])
+  @@index([isActive])
+}
+
+model PromoCodeUsage {
+  id             String      @id @default(uuid())
+  promoCodeId    String
+  promoCode      PromoCode   @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  invoiceId      String
+  invoice        Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  clientId       String?
+  client         Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  discountAmount Decimal     @db.Decimal(10, 2)
+  createdAt      DateTime    @default(now())
+
+  @@index([promoCodeId])
+  @@index([invoiceId])
+  @@index([clientId])
+}
+
+model InfluencerCommission {
+  id               String                     @id @default(uuid())
+  influencerId     String
+  influencer       Influencer                 @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+  promoCodeId      String
+  promoCode        PromoCode                  @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  invoiceId        String
+  invoice          Invoice                    @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  clientId         String?
+  client           Client?                    @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  payoutId         String?
+  payout           InfluencerPayout?          @relation(fields: [payoutId], references: [id], onDelete: SetNull)
+  basePaidAmount   Decimal                    @db.Decimal(10, 2)
+  commissionRate   Decimal                    @db.Decimal(5, 2)
+  commissionAmount Decimal                    @db.Decimal(10, 2)
+  reversedAmount   Decimal                    @default(0) @db.Decimal(10, 2)
+  status           InfluencerCommissionStatus @default(APPROVED)
+  notes            String?                    @db.Text
+  createdAt        DateTime                   @default(now())
+  updatedAt        DateTime                   @updatedAt
+
+  @@unique([invoiceId, promoCodeId])
+  @@index([influencerId])
+  @@index([promoCodeId])
+  @@index([invoiceId])
+  @@index([payoutId])
+  @@index([status])
+}
+
+model InfluencerPayout {
+  id           String                 @id @default(uuid())
+  influencerId String
+  influencer   Influencer             @relation(fields: [influencerId], references: [id], onDelete: Cascade)
+  amount       Decimal                @db.Decimal(10, 2)
+  payoutMethod InfluencerPayoutMethod
+  reference    String?
+  notes        String?                @db.Text
+  paidById     String?
+  paidBy       User?                  @relation("InfluencerPayoutPaidBy", fields: [paidById], references: [id], onDelete: SetNull)
+  paidAt       DateTime               @default(now())
+  commissions  InfluencerCommission[]
+
+  @@index([influencerId])
+  @@index([paidById])
+  @@index([paidAt])
+}

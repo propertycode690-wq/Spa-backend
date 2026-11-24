@@ -8,6 +8,10 @@ export declare const createInvoiceSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
     date: z.ZodNullable<z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodDate]>>>;
     invoiceNumber: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     discount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    promoCode: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    promoCodeId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    promoDiscount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
+    vipDiscount: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;
     status: z.ZodDefault<z.ZodOptional<z.ZodEnum<["DRAFT", "PENDING_PAYMENT", "PAID"]>>>;
     paymentMethod: z.ZodOptional<z.ZodEnum<["CASH", "MTN_MOMO", "ORANGE_MONEY"]>>;
     payments: z.ZodOptional<z.ZodArray<z.ZodObject<{
@@ -61,13 +65,17 @@ export declare const createInvoiceSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
 }, "strip", z.ZodTypeAny, {
     status: "DRAFT" | "PENDING_PAYMENT" | "PAID";
     discount: number;
+    promoDiscount: number;
+    vipDiscount: number;
+    promoCode?: string | null | undefined;
     phone?: string | null | undefined;
-    clientId?: string | null | undefined;
-    appointmentId?: string | null | undefined;
     date?: string | Date | null | undefined;
     clientName?: string | null | undefined;
+    clientId?: string | null | undefined;
+    appointmentId?: string | null | undefined;
     invoiceNumber?: string | null | undefined;
     clientPhone?: string | null | undefined;
+    promoCodeId?: string | null | undefined;
     payments?: {
         amount: number;
         paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
@@ -88,15 +96,19 @@ export declare const createInvoiceSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
         quantity: number;
     }[] | undefined;
 }, {
+    promoCode?: string | null | undefined;
     phone?: string | null | undefined;
     status?: "DRAFT" | "PENDING_PAYMENT" | "PAID" | undefined;
-    clientId?: string | null | undefined;
-    appointmentId?: string | null | undefined;
     date?: string | Date | null | undefined;
     clientName?: string | null | undefined;
+    clientId?: string | null | undefined;
+    appointmentId?: string | null | undefined;
     invoiceNumber?: string | null | undefined;
     clientPhone?: string | null | undefined;
     discount?: number | undefined;
+    promoCodeId?: string | null | undefined;
+    promoDiscount?: number | undefined;
+    vipDiscount?: number | undefined;
     payments?: {
         amount: number;
         paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
@@ -119,13 +131,17 @@ export declare const createInvoiceSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
 }>, {
     status: "DRAFT" | "PENDING_PAYMENT" | "PAID";
     discount: number;
+    promoDiscount: number;
+    vipDiscount: number;
+    promoCode?: string | null | undefined;
     phone?: string | null | undefined;
-    clientId?: string | null | undefined;
-    appointmentId?: string | null | undefined;
     date?: string | Date | null | undefined;
     clientName?: string | null | undefined;
+    clientId?: string | null | undefined;
+    appointmentId?: string | null | undefined;
     invoiceNumber?: string | null | undefined;
     clientPhone?: string | null | undefined;
+    promoCodeId?: string | null | undefined;
     payments?: {
         amount: number;
         paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
@@ -146,15 +162,19 @@ export declare const createInvoiceSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
         quantity: number;
     }[] | undefined;
 }, {
+    promoCode?: string | null | undefined;
     phone?: string | null | undefined;
     status?: "DRAFT" | "PENDING_PAYMENT" | "PAID" | undefined;
-    clientId?: string | null | undefined;
-    appointmentId?: string | null | undefined;
     date?: string | Date | null | undefined;
     clientName?: string | null | undefined;
+    clientId?: string | null | undefined;
+    appointmentId?: string | null | undefined;
     invoiceNumber?: string | null | undefined;
     clientPhone?: string | null | undefined;
     discount?: number | undefined;
+    promoCodeId?: string | null | undefined;
+    promoDiscount?: number | undefined;
+    vipDiscount?: number | undefined;
     payments?: {
         amount: number;
         paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
@@ -177,13 +197,17 @@ export declare const createInvoiceSchema: z.ZodEffects<z.ZodEffects<z.ZodObject<
 }>, {
     status: "DRAFT" | "PENDING_PAYMENT" | "PAID";
     discount: number;
+    promoDiscount: number;
+    vipDiscount: number;
+    promoCode?: string | null | undefined;
     phone?: string | null | undefined;
-    clientId?: string | null | undefined;
-    appointmentId?: string | null | undefined;
     date?: string | Date | null | undefined;
     clientName?: string | null | undefined;
+    clientId?: string | null | undefined;
+    appointmentId?: string | null | undefined;
     invoiceNumber?: string | null | undefined;
     clientPhone?: string | null | undefined;
+    promoCodeId?: string | null | undefined;
     payments?: {
         amount: number;
         paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
@@ -228,19 +252,31 @@ export declare const addInvoiceItemSchema: z.ZodObject<{
 }>;
 export declare const updateInvoiceSchema: z.ZodObject<{
     discount: z.ZodOptional<z.ZodNumber>;
+    promoCode: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    promoCodeId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
+    promoDiscount: z.ZodOptional<z.ZodNumber>;
+    vipDiscount: z.ZodOptional<z.ZodNumber>;
     status: z.ZodOptional<z.ZodEnum<["DRAFT", "PENDING_PAYMENT"]>>;
     pointsRedeemed: z.ZodOptional<z.ZodNumber>;
     pointsEarned: z.ZodOptional<z.ZodNumber>;
 }, "strip", z.ZodTypeAny, {
+    promoCode?: string | null | undefined;
     status?: "DRAFT" | "PENDING_PAYMENT" | undefined;
     discount?: number | undefined;
     pointsEarned?: number | undefined;
     pointsRedeemed?: number | undefined;
+    promoCodeId?: string | null | undefined;
+    promoDiscount?: number | undefined;
+    vipDiscount?: number | undefined;
 }, {
+    promoCode?: string | null | undefined;
     status?: "DRAFT" | "PENDING_PAYMENT" | undefined;
     discount?: number | undefined;
     pointsEarned?: number | undefined;
     pointsRedeemed?: number | undefined;
+    promoCodeId?: string | null | undefined;
+    promoDiscount?: number | undefined;
+    vipDiscount?: number | undefined;
 }>;
 export declare const invoiceQuerySchema: z.ZodObject<{
     status: z.ZodOptional<z.ZodNativeEnum<{
@@ -257,15 +293,15 @@ export declare const invoiceQuerySchema: z.ZodObject<{
     limit?: string | number | undefined;
     search?: string | undefined;
     status?: "DRAFT" | "PENDING_PAYMENT" | "PAID" | undefined;
-    clientId?: string | undefined;
     date?: string | undefined;
     page?: string | number | undefined;
+    clientId?: string | undefined;
 }, {
     limit?: string | number | undefined;
     search?: string | undefined;
     status?: "DRAFT" | "PENDING_PAYMENT" | "PAID" | undefined;
-    clientId?: string | undefined;
     date?: string | undefined;
     page?: string | number | undefined;
+    clientId?: string | undefined;
 }>;
 //# sourceMappingURL=invoices.validation.d.ts.map

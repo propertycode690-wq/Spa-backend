@@ -37,24 +37,28 @@ export declare const sendCustomMessageSchema: z.ZodObject<{
         DAILY_SUMMARY: "DAILY_SUMMARY";
         DAILY_CLOSE_BOSS: "DAILY_CLOSE_BOSS";
         CLIENT_WELCOME: "CLIENT_WELCOME";
+        NEW_CLIENT_WELCOME: "NEW_CLIENT_WELCOME";
+        NEW_CLIENT_SECOND_OFFER: "NEW_CLIENT_SECOND_OFFER";
+        REGULAR_WIN_BACK: "REGULAR_WIN_BACK";
+        VIP_EXCLUSIVE_OFFER: "VIP_EXCLUSIVE_OFFER";
     }>>;
     idempotencyKey: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
     message: string;
     recipientPhone: string;
+    idempotencyKey?: string | undefined;
     clientId?: string | undefined;
     appointmentId?: string | undefined;
-    idempotencyKey?: string | undefined;
     invoiceId?: string | undefined;
-    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | "CLIENT_WELCOME" | undefined;
+    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | "CLIENT_WELCOME" | "NEW_CLIENT_WELCOME" | "NEW_CLIENT_SECOND_OFFER" | "REGULAR_WIN_BACK" | "VIP_EXCLUSIVE_OFFER" | undefined;
 }, {
     message: string;
     recipientPhone: string;
+    idempotencyKey?: string | undefined;
     clientId?: string | undefined;
     appointmentId?: string | undefined;
-    idempotencyKey?: string | undefined;
     invoiceId?: string | undefined;
-    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | "CLIENT_WELCOME" | undefined;
+    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | "CLIENT_WELCOME" | "NEW_CLIENT_WELCOME" | "NEW_CLIENT_SECOND_OFFER" | "REGULAR_WIN_BACK" | "VIP_EXCLUSIVE_OFFER" | undefined;
 }>;
 export declare const dailyCloseTriggerSchema: z.ZodObject<{
     businessDate: z.ZodOptional<z.ZodString>;
@@ -98,6 +102,10 @@ export declare const logsQuerySchema: z.ZodObject<{
         DAILY_SUMMARY: "DAILY_SUMMARY";
         DAILY_CLOSE_BOSS: "DAILY_CLOSE_BOSS";
         CLIENT_WELCOME: "CLIENT_WELCOME";
+        NEW_CLIENT_WELCOME: "NEW_CLIENT_WELCOME";
+        NEW_CLIENT_SECOND_OFFER: "NEW_CLIENT_SECOND_OFFER";
+        REGULAR_WIN_BACK: "REGULAR_WIN_BACK";
+        VIP_EXCLUSIVE_OFFER: "VIP_EXCLUSIVE_OFFER";
     }>>;
     clientId: z.ZodOptional<z.ZodString>;
     appointmentId: z.ZodOptional<z.ZodString>;
@@ -111,21 +119,21 @@ export declare const logsQuerySchema: z.ZodObject<{
     search?: string | undefined;
     phone?: string | undefined;
     status?: "QUEUED" | "PENDING" | "SENT" | "DELIVERED" | "FAILED" | "SKIPPED" | undefined;
+    page?: number | undefined;
     clientId?: string | undefined;
     appointmentId?: string | undefined;
-    page?: number | undefined;
     invoiceId?: string | undefined;
-    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | "CLIENT_WELCOME" | undefined;
+    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | "CLIENT_WELCOME" | "NEW_CLIENT_WELCOME" | "NEW_CLIENT_SECOND_OFFER" | "REGULAR_WIN_BACK" | "VIP_EXCLUSIVE_OFFER" | undefined;
 }, {
     limit?: number | undefined;
     search?: string | undefined;
     phone?: string | undefined;
     status?: "QUEUED" | "PENDING" | "SENT" | "DELIVERED" | "FAILED" | "SKIPPED" | undefined;
+    page?: number | undefined;
     clientId?: string | undefined;
     appointmentId?: string | undefined;
-    page?: number | undefined;
     invoiceId?: string | undefined;
-    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | "CLIENT_WELCOME" | undefined;
+    automationType?: "BIRTHDAY" | "ANNIVERSARY" | "APPOINTMENT_REMINDER" | "APPOINTMENT_24H" | "APPOINTMENT_2H" | "AFTER_SERVICE" | "INVOICE_THANKYOU" | "PAYMENT_CONFIRMATION" | "REBOOKING" | "DAILY_SUMMARY" | "DAILY_CLOSE_BOSS" | "CLIENT_WELCOME" | "NEW_CLIENT_WELCOME" | "NEW_CLIENT_SECOND_OFFER" | "REGULAR_WIN_BACK" | "VIP_EXCLUSIVE_OFFER" | undefined;
 }>;
 export declare const purgeLogsSchema: z.ZodObject<{
     days: z.ZodDefault<z.ZodOptional<z.ZodNumber>>;

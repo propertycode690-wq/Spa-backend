@@ -29,16 +29,51 @@ router.get(
   (req, res, next) => clientsController.getClientById(req, res, next)
 );
 
-// PUT /api/v1/clients/:id & PATCH /api/v1/clients/:id — Update Client (Manager, Reception only; Technician forbidden)
+// PUT /api/v1/clients/:id & PATCH /api/v1/clients/:id — Update Client (Manager, Reception, Marketer)
 router.put(
   '/:id',
-  allowRoles('MANAGER', 'RECEPTION'),
+  allowRoles('MANAGER', 'RECEPTION', 'MARKETER'),
   (req, res, next) => clientsController.updateClient(req, res, next)
 );
 router.patch(
   '/:id',
-  allowRoles('MANAGER', 'RECEPTION'),
+  allowRoles('MANAGER', 'RECEPTION', 'MARKETER'),
   (req, res, next) => clientsController.updateClient(req, res, next)
+);
+
+// PATCH /api/v1/clients/:id/preferences — Update Client Preferences (Manager, Reception, Marketer)
+router.patch(
+  '/:id/preferences',
+  allowRoles('MANAGER', 'RECEPTION', 'MARKETER'),
+  (req, res, next) => clientsController.updatePreferences(req, res, next)
+);
+
+// GET /api/v1/clients/:id/preferences-audit — Client Preferences Audit History (Manager, Reception, Marketer)
+router.get(
+  '/:id/preferences-audit',
+  allowRoles('MANAGER', 'RECEPTION', 'MARKETER'),
+  (req, res, next) => clientsController.getPreferencesAudit(req, res, next)
+);
+
+// POST /api/v1/clients/run-classification — Run Classification on demand (Manager)
+router.post(
+  '/run-classification',
+  allowRoles('MANAGER'),
+  (req, res, next) => clientsController.runClassification(req, res, next)
+);
+
+// PATCH /api/v1/clients/:id/client-type — Manual Client Type Override (Manager, Reception, Marketer)
+router.patch(
+  '/:id/client-type',
+  allowRoles('MANAGER', 'RECEPTION', 'MARKETER'),
+  (req, res, next) => clientsController.updateClientType(req, res, next)
+);
+
+// GET /api/v1/clients/:id/type-audit — Client Type Classification Audit History (Manager, Reception, Marketer)
+router.get(
+  '/:id/type-audit',
+  allowRoles('MANAGER', 'RECEPTION', 'MARKETER'),
+  (req, res, next) => clientsController.getClientTypeAudit(req, res, next)
 );
 
 // PATCH /api/v1/clients/:id/status — Set Status (Manager, Reception)

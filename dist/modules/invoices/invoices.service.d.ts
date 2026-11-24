@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { CreateInvoiceInput, AddInvoiceItemInput, UpdateInvoiceInput, InvoiceQueryFilter, AuthContextUser } from './invoices.types';
 export declare class InvoicesService {
     createInvoice(data: CreateInvoiceInput, authUser: AuthContextUser): Promise<{
+        paymentMethod: string;
         client: {
             loyaltyPoints: number;
             id: string;
@@ -22,8 +23,8 @@ export declare class InvoicesService {
         appointment: {
             id: string;
             status: import(".prisma/client").$Enums.AppointmentStatus;
-            appointmentDate: Date;
             mainTechnicianId: string;
+            appointmentDate: Date;
             appointmentTime: string;
             serviceSummary: string | null;
             notes: string | null;
@@ -53,10 +54,10 @@ export declare class InvoicesService {
             createdAt: Date;
             updatedAt: Date;
             name: string;
+            invoiceId: string;
+            price: Prisma.Decimal;
             serviceId: string | null;
             technicianId: string | null;
-            price: Prisma.Decimal;
-            invoiceId: string;
             appointmentServiceId: string | null;
             retailProductId: string | null;
             itemType: import(".prisma/client").$Enums.InvoiceItemType;
@@ -75,8 +76,8 @@ export declare class InvoicesService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            notes: string | null;
             invoiceId: string;
+            notes: string | null;
             paidAt: Date;
             amount: Prisma.Decimal;
             paymentMethod: import(".prisma/client").$Enums.PaymentMethod;
@@ -86,25 +87,28 @@ export declare class InvoicesService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.InvoiceStatus;
+        date: Date;
         clientId: string | null;
         appointmentId: string | null;
-        total: Prisma.Decimal;
-        date: Date;
         invoiceNumber: string;
         subtotal: Prisma.Decimal;
         discount: Prisma.Decimal;
+        total: Prisma.Decimal;
         pointsEarned: number;
         pointsRedeemed: number;
+        promoCodeId: string | null;
+        promoDiscount: Prisma.Decimal;
+        vipDiscount: Prisma.Decimal;
     }>;
     addInvoiceItem(invoiceId: string, data: AddInvoiceItemInput, authUser: AuthContextUser): Promise<{
         id: string;
         createdAt: Date;
         updatedAt: Date;
         name: string;
+        invoiceId: string;
+        price: Prisma.Decimal;
         serviceId: string | null;
         technicianId: string | null;
-        price: Prisma.Decimal;
-        invoiceId: string;
         appointmentServiceId: string | null;
         retailProductId: string | null;
         itemType: import(".prisma/client").$Enums.InvoiceItemType;
@@ -119,6 +123,7 @@ export declare class InvoicesService {
     ensureMissingWalkInInvoices(): Promise<void>;
     getInvoices(query: InvoiceQueryFilter, authUser?: AuthContextUser): Promise<{
         invoices: {
+            paymentMethod: string;
             client: {
                 loyaltyPoints: number;
                 id: string;
@@ -138,8 +143,8 @@ export declare class InvoicesService {
             remainingAmount: number;
             appointment: {
                 id: string;
-                appointmentDate: Date;
                 mainTechnicianId: string;
+                appointmentDate: Date;
                 appointmentTime: string;
                 serviceSummary: string | null;
                 notes: string | null;
@@ -169,10 +174,10 @@ export declare class InvoicesService {
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
+                invoiceId: string;
+                price: Prisma.Decimal;
                 serviceId: string | null;
                 technicianId: string | null;
-                price: Prisma.Decimal;
-                invoiceId: string;
                 appointmentServiceId: string | null;
                 retailProductId: string | null;
                 itemType: import(".prisma/client").$Enums.InvoiceItemType;
@@ -183,8 +188,8 @@ export declare class InvoicesService {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                notes: string | null;
                 invoiceId: string;
+                notes: string | null;
                 paidAt: Date;
                 amount: Prisma.Decimal;
                 paymentMethod: import(".prisma/client").$Enums.PaymentMethod;
@@ -194,15 +199,18 @@ export declare class InvoicesService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.InvoiceStatus;
+            date: Date;
             clientId: string | null;
             appointmentId: string | null;
-            total: Prisma.Decimal;
-            date: Date;
             invoiceNumber: string;
             subtotal: Prisma.Decimal;
             discount: Prisma.Decimal;
+            total: Prisma.Decimal;
             pointsEarned: number;
             pointsRedeemed: number;
+            promoCodeId: string | null;
+            promoDiscount: Prisma.Decimal;
+            vipDiscount: Prisma.Decimal;
         }[];
         pagination: {
             total: number;
@@ -213,6 +221,7 @@ export declare class InvoicesService {
     }>;
     getPendingInvoices(authUser?: AuthContextUser): Promise<{
         invoices: {
+            paymentMethod: string;
             client: {
                 loyaltyPoints: number;
                 id: string;
@@ -232,8 +241,8 @@ export declare class InvoicesService {
             remainingAmount: number;
             appointment: {
                 id: string;
-                appointmentDate: Date;
                 mainTechnicianId: string;
+                appointmentDate: Date;
                 appointmentTime: string;
                 serviceSummary: string | null;
                 notes: string | null;
@@ -263,10 +272,10 @@ export declare class InvoicesService {
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
+                invoiceId: string;
+                price: Prisma.Decimal;
                 serviceId: string | null;
                 technicianId: string | null;
-                price: Prisma.Decimal;
-                invoiceId: string;
                 appointmentServiceId: string | null;
                 retailProductId: string | null;
                 itemType: import(".prisma/client").$Enums.InvoiceItemType;
@@ -277,8 +286,8 @@ export declare class InvoicesService {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                notes: string | null;
                 invoiceId: string;
+                notes: string | null;
                 paidAt: Date;
                 amount: Prisma.Decimal;
                 paymentMethod: import(".prisma/client").$Enums.PaymentMethod;
@@ -288,15 +297,18 @@ export declare class InvoicesService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.InvoiceStatus;
+            date: Date;
             clientId: string | null;
             appointmentId: string | null;
-            total: Prisma.Decimal;
-            date: Date;
             invoiceNumber: string;
             subtotal: Prisma.Decimal;
             discount: Prisma.Decimal;
+            total: Prisma.Decimal;
             pointsEarned: number;
             pointsRedeemed: number;
+            promoCodeId: string | null;
+            promoDiscount: Prisma.Decimal;
+            vipDiscount: Prisma.Decimal;
         }[];
         pagination: {
             total: number;
@@ -306,6 +318,7 @@ export declare class InvoicesService {
         };
     }>;
     getInvoiceById(id: string, authUser?: AuthContextUser): Promise<{
+        paymentMethod: string;
         client: {
             loyaltyPoints: number;
             id: string;
@@ -326,8 +339,8 @@ export declare class InvoicesService {
         appointment: {
             id: string;
             status: import(".prisma/client").$Enums.AppointmentStatus;
-            appointmentDate: Date;
             mainTechnicianId: string;
+            appointmentDate: Date;
             appointmentTime: string;
             serviceSummary: string | null;
             notes: string | null;
@@ -357,10 +370,10 @@ export declare class InvoicesService {
             createdAt: Date;
             updatedAt: Date;
             name: string;
+            invoiceId: string;
+            price: Prisma.Decimal;
             serviceId: string | null;
             technicianId: string | null;
-            price: Prisma.Decimal;
-            invoiceId: string;
             appointmentServiceId: string | null;
             retailProductId: string | null;
             itemType: import(".prisma/client").$Enums.InvoiceItemType;
@@ -379,8 +392,8 @@ export declare class InvoicesService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            notes: string | null;
             invoiceId: string;
+            notes: string | null;
             paidAt: Date;
             amount: Prisma.Decimal;
             paymentMethod: import(".prisma/client").$Enums.PaymentMethod;
@@ -390,17 +403,21 @@ export declare class InvoicesService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.InvoiceStatus;
+        date: Date;
         clientId: string | null;
         appointmentId: string | null;
-        total: Prisma.Decimal;
-        date: Date;
         invoiceNumber: string;
         subtotal: Prisma.Decimal;
         discount: Prisma.Decimal;
+        total: Prisma.Decimal;
         pointsEarned: number;
         pointsRedeemed: number;
+        promoCodeId: string | null;
+        promoDiscount: Prisma.Decimal;
+        vipDiscount: Prisma.Decimal;
     }>;
     updateInvoice(id: string, data: UpdateInvoiceInput, authUser: AuthContextUser): Promise<{
+        paymentMethod: string;
         client: {
             loyaltyPoints: number;
             id: string;
@@ -421,8 +438,8 @@ export declare class InvoicesService {
         appointment: {
             id: string;
             status: import(".prisma/client").$Enums.AppointmentStatus;
-            appointmentDate: Date;
             mainTechnicianId: string;
+            appointmentDate: Date;
             appointmentTime: string;
             serviceSummary: string | null;
             notes: string | null;
@@ -452,10 +469,10 @@ export declare class InvoicesService {
             createdAt: Date;
             updatedAt: Date;
             name: string;
+            invoiceId: string;
+            price: Prisma.Decimal;
             serviceId: string | null;
             technicianId: string | null;
-            price: Prisma.Decimal;
-            invoiceId: string;
             appointmentServiceId: string | null;
             retailProductId: string | null;
             itemType: import(".prisma/client").$Enums.InvoiceItemType;
@@ -474,8 +491,8 @@ export declare class InvoicesService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
-            notes: string | null;
             invoiceId: string;
+            notes: string | null;
             paidAt: Date;
             amount: Prisma.Decimal;
             paymentMethod: import(".prisma/client").$Enums.PaymentMethod;
@@ -485,15 +502,18 @@ export declare class InvoicesService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.InvoiceStatus;
+        date: Date;
         clientId: string | null;
         appointmentId: string | null;
-        total: Prisma.Decimal;
-        date: Date;
         invoiceNumber: string;
         subtotal: Prisma.Decimal;
         discount: Prisma.Decimal;
+        total: Prisma.Decimal;
         pointsEarned: number;
         pointsRedeemed: number;
+        promoCodeId: string | null;
+        promoDiscount: Prisma.Decimal;
+        vipDiscount: Prisma.Decimal;
     }>;
 }
 export declare const invoicesService: InvoicesService;

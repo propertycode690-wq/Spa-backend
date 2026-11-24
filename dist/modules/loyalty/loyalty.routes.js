@@ -19,8 +19,8 @@ router.get('/rewards/upcoming', (0, roleMiddleware_1.allowRoles)('MANAGER', 'REC
 router.post('/clients/:clientId/reward', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => loyalty_controller_1.loyaltyController.awardCelebrationReward(req, res, next));
 // POST /api/v1/loyalty/clients/:clientId/adjust — Manager manual points adjustment
 router.post('/clients/:clientId/adjust', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => loyalty_controller_1.loyaltyController.adjustClientPoints(req, res, next));
-// GET /api/v1/loyalty/clients/:clientId — View client loyalty balance & history (Manager, Reception, Technician)
-router.get('/clients/:clientId', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => loyalty_controller_1.loyaltyController.getClientLoyalty(req, res, next));
+// GET /api/v1/loyalty/clients/:clientId — View client loyalty balance & history (Manager, Reception, Technician, Marketer)
+router.get('/clients/:clientId', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => loyalty_controller_1.loyaltyController.getClientLoyalty(req, res, next));
 // POST /api/v1/loyalty/invoices/:id/redeem — Redeem points during checkout (Manager, Reception)
 router.post('/invoices/:id/redeem', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => loyalty_controller_1.loyaltyController.redeemPointsForInvoice(req, res, next));
 exports.default = router;

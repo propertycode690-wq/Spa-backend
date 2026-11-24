@@ -33,10 +33,10 @@ export declare class StockService {
             id: string;
             createdAt: Date;
             type: import(".prisma/client").$Enums.StockActivityType;
+            reason: string | null;
             createdById: string | null;
             quantity: Prisma.Decimal;
             serviceStockId: string;
-            reason: string | null;
             referenceId: string | null;
         })[];
         id: string;
@@ -80,10 +80,10 @@ export declare class StockService {
             id: string;
             createdAt: Date;
             type: import(".prisma/client").$Enums.StockActivityType;
+            reason: string | null;
             createdById: string | null;
             quantity: Prisma.Decimal;
             serviceStockId: string;
-            reason: string | null;
             referenceId: string | null;
         };
     }>;
@@ -110,10 +110,10 @@ export declare class StockService {
             id: string;
             createdAt: Date;
             type: import(".prisma/client").$Enums.StockActivityType;
+            reason: string | null;
             createdById: string | null;
             quantity: Prisma.Decimal;
             serviceStockId: string;
-            reason: string | null;
             referenceId: string | null;
         };
     }>;
@@ -153,10 +153,10 @@ export declare class StockService {
             id: string;
             createdAt: Date;
             type: import(".prisma/client").$Enums.StockActivityType;
+            reason: string | null;
             createdById: string | null;
             quantity: Prisma.Decimal;
             serviceStockId: string;
-            reason: string | null;
             referenceId: string | null;
         };
         consumedQty: number;
@@ -180,9 +180,9 @@ export declare class StockService {
             id: string;
             createdAt: Date;
             type: import(".prisma/client").$Enums.StockActivityType;
+            reason: string | null;
             createdById: string | null;
             serviceStockId: string;
-            reason: string | null;
             referenceId: string | null;
         }[];
         pagination: {
@@ -283,10 +283,10 @@ export declare class StockService {
         createdAt: Date;
         updatedAt: Date;
         status: string;
-        technicianId: string;
-        publicId: string | null;
         date: Date;
+        technicianId: string;
         productName: string;
+        publicId: string | null;
         serviceStockId: string | null;
         photoUrl: string;
         remarks: string | null;
@@ -325,10 +325,10 @@ export declare class StockService {
             createdAt: Date;
             updatedAt: Date;
             status: string;
-            technicianId: string;
-            publicId: string | null;
             date: Date;
+            technicianId: string;
             productName: string;
+            publicId: string | null;
             serviceStockId: string | null;
             photoUrl: string;
             remarks: string | null;
@@ -371,10 +371,10 @@ export declare class StockService {
         createdAt: Date;
         updatedAt: Date;
         status: string;
-        technicianId: string;
-        publicId: string | null;
         date: Date;
+        technicianId: string;
         productName: string;
+        publicId: string | null;
         serviceStockId: string | null;
         photoUrl: string;
         remarks: string | null;

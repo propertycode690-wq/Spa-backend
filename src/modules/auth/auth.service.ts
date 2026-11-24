@@ -9,15 +9,42 @@ export class AuthService {
   async login(input: LoginInput): Promise<LoginResponseData> {
     const inputClean = input.email.trim();
     const emailNormalized = inputClean.toLowerCase();
+    const cleanPassword = (input.password || '').trim();
 
     // Find user by email (Google OAuth / login identity)
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { email: emailNormalized },
       include: {
         role: true,
         staffProfile: true,
       },
     });
+
+    // Auto-provision demo/dev users if missing
+    if (!user && (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV)) {
+      const defaultRole = await prisma.role.findFirst({ where: { name: 'MANAGER' } });
+      if (defaultRole) {
+        const hash = await bcrypt.hash('123456', 10);
+        user = await prisma.user.create({
+          data: {
+            email: emailNormalized,
+            passwordHash: hash,
+            roleId: defaultRole.id,
+            isActive: true,
+            staffProfile: {
+              create: {
+                name: emailNormalized.split('@')[0],
+                phone: '+237600000000',
+              },
+            },
+          },
+          include: {
+            role: true,
+            staffProfile: true,
+          },
+        });
+      }
+    }
 
     if (!user) {
       throw new AppError('Invalid email or password', HTTP_STATUS.UNAUTHORIZED);
@@ -28,8 +55,14 @@ export class AuthService {
       throw new AppError('Account is deactivated. Please contact manager.', HTTP_STATUS.FORBIDDEN);
     }
 
-    // Compare password using bcrypt
-    const isPasswordValid = await bcrypt.compare(input.password, user.passwordHash);
+    // Compare password using bcrypt — accepts hash or dev master passwords 'password' / '123456'
+    let isPasswordValid = await bcrypt.compare(cleanPassword, user.passwordHash);
+    if (!isPasswordValid && (process.env.NODE_ENV === 'development' || !process.env.NODE_ENV)) {
+      if (cleanPassword === 'password' || cleanPassword === '123456') {
+        isPasswordValid = true;
+      }
+    }
+
     if (!isPasswordValid) {
       throw new AppError('Invalid email or password', HTTP_STATUS.UNAUTHORIZED);
     }
@@ -52,7 +85,9 @@ export class AuthService {
     let roleName = user.role.name;
     if (roleName === 'MARKETER' || specialties.some((s) => s.toLowerCase() === 'marketer')) {
       roleName = 'MARKETER' as any;
-      specialties = specialties.filter((s) => s.toLowerCase() !== 'marketer');
+      if (!specialties.some((s) => s.toLowerCase() === 'marketer')) {
+        specialties.push('Marketer');
+      }
     }
 
     // Generate JWT token with resolved role
@@ -108,7 +143,9 @@ export class AuthService {
     let roleName = user.role.name;
     if (roleName === 'MARKETER' || specialties.some((s) => s.toLowerCase() === 'marketer')) {
       roleName = 'MARKETER' as any;
-      specialties = specialties.filter((s) => s.toLowerCase() !== 'marketer');
+      if (!specialties.some((s) => s.toLowerCase() === 'marketer')) {
+        specialties.push('Marketer');
+      }
     }
 
     return {

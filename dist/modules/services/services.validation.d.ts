@@ -12,15 +12,15 @@ export declare const createServiceSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name: string;
     status: "ACTIVE" | "INACTIVE";
-    price: number;
     category: string;
     duration: number;
+    price: number;
     description?: string | null | undefined;
 }, {
     name: string;
-    price: number;
     category: string;
     duration: number;
+    price: number;
     status?: "ACTIVE" | "INACTIVE" | undefined;
     description?: string | null | undefined;
 }>;
@@ -37,17 +37,17 @@ export declare const updateServiceSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     name?: string | undefined;
     status?: "ACTIVE" | "INACTIVE" | undefined;
-    price?: number | undefined;
     category?: string | undefined;
     description?: string | null | undefined;
     duration?: number | undefined;
+    price?: number | undefined;
 }, {
     name?: string | undefined;
     status?: "ACTIVE" | "INACTIVE" | undefined;
-    price?: number | undefined;
     category?: string | undefined;
     description?: string | null | undefined;
     duration?: number | undefined;
+    price?: number | undefined;
 }>;
 export declare const serviceQuerySchema: z.ZodObject<{
     category: z.ZodOptional<z.ZodString>;

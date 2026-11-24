@@ -29,6 +29,10 @@ export const createInvoiceSchema = z.preprocess(
       date: z.union([z.string(), z.date()]).optional().nullable(),
       invoiceNumber: z.string().optional().nullable(),
       discount: z.number().nonnegative('Discount cannot be negative').optional().default(0),
+      promoCode: z.string().optional().nullable(),
+      promoCodeId: z.string().uuid().optional().nullable(),
+      promoDiscount: z.number().nonnegative().optional().default(0),
+      vipDiscount: z.number().nonnegative().optional().default(0),
       status: z.enum([InvoiceStatus.DRAFT, InvoiceStatus.PENDING_PAYMENT, InvoiceStatus.PAID]).optional().default(InvoiceStatus.PENDING_PAYMENT),
       paymentMethod: z.enum(['CASH', 'MTN_MOMO', 'ORANGE_MONEY']).optional(),
       payments: z
@@ -85,6 +89,10 @@ export const addInvoiceItemSchema = z.object({
 
 export const updateInvoiceSchema = z.object({
   discount: z.number().nonnegative('Discount cannot be negative').optional(),
+  promoCode: z.string().optional().nullable(),
+  promoCodeId: z.string().uuid().optional().nullable(),
+  promoDiscount: z.number().nonnegative().optional(),
+  vipDiscount: z.number().nonnegative().optional(),
   status: z.enum([InvoiceStatus.DRAFT, InvoiceStatus.PENDING_PAYMENT]).optional(),
   pointsRedeemed: z.number().int().nonnegative().optional(),
   pointsEarned: z.number().int().nonnegative().optional(),

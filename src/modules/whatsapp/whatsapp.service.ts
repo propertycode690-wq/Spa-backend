@@ -35,47 +35,89 @@ export function normalizeAutomationType(input: string): WhatsAppAutomationType {
 
 export class WhatsAppService {
   /**
-   * Default message templates for all 8 automations.
+   * Default bilingual message templates for all automations (Phase 2A).
    */
-  private readonly defaultTemplates: Partial<Record<WhatsAppAutomationType, { template: string; timing: string }>> = {
+  private readonly defaultTemplates: Partial<Record<WhatsAppAutomationType, { template: string; templateEn: string; templateFr: string; timing: string }>> = {
     BIRTHDAY: {
       template: 'Happy Birthday {clientName}! Celebrate your special day at OMEGA SPA with {rewardPoints} bonus loyalty points on us. Book your pampering session today!',
+      templateEn: 'Happy Birthday {clientName}! Celebrate your special day at OMEGA SPA with {rewardPoints} bonus loyalty points on us. Book your pampering session today!',
+      templateFr: "Joyeux Anniversaire {clientName} ! Célébrez votre journée spéciale chez OMEGA SPA avec {rewardPoints} points fidélité bonus offerts. Réservez votre moment de bien-être dès aujourd'hui !",
       timing: '09:00',
     },
     ANNIVERSARY: {
       template: 'Happy Anniversary {clientName}! Wishing you wonderful memories from all of us at OMEGA SPA. Enjoy our luxury relaxation treatments!',
+      templateEn: 'Happy Anniversary {clientName}! Wishing you wonderful memories from all of us at OMEGA SPA. Enjoy our luxury relaxation treatments!',
+      templateFr: "Joyeux Anniversaire de Mariage {clientName} ! Toute l'équipe d'OMEGA SPA vous souhaite de merveilleux souvenirs. Venez profiter de nos soins de détente !",
       timing: '09:00',
     },
     APPOINTMENT_24H: {
       template: 'Hello {clientName}, this is a reminder for your appointment tomorrow at {appointmentTime} for {service} with {technician} at OMEGA SPA. See you soon!',
+      templateEn: 'Hello {clientName}, this is a reminder for your appointment tomorrow at {appointmentTime} for {service} with {technician} at OMEGA SPA. See you soon!',
+      templateFr: 'Bonjour {clientName}, rappel de votre rendez-vous demain à {appointmentTime} pour {service} avec {technician} chez OMEGA SPA. À très bientôt !',
       timing: '24h',
     },
     APPOINTMENT_2H: {
       template: 'Hello {clientName}, your appointment at OMEGA SPA is in 2 hours ({appointmentTime}) for {service}. We are preparing for your visit!',
+      templateEn: 'Hello {clientName}, your appointment at OMEGA SPA is in 2 hours ({appointmentTime}) for {service}. We are preparing for your visit!',
+      templateFr: 'Bonjour {clientName}, votre rendez-vous chez OMEGA SPA est dans 2 heures ({appointmentTime}) pour {service}. Nous préparons votre arrivée !',
       timing: '2h',
     },
     AFTER_SERVICE: {
       template:
         'Thank you {clientName} for visiting OMEGA SPA! 🌿 We hope you enjoyed your {service} with {technician}. Your current loyalty points balance: {loyaltyPoints} points.\n\n⭐ We value your feedback! Rate your experience here:\n{feedbackLink}\n\n— OMEGA SPA, Douala',
+      templateEn:
+        'Thank you {clientName} for visiting OMEGA SPA! 🌿 We hope you enjoyed your {service} with {technician}. Your current loyalty points balance: {loyaltyPoints} points.\n\n⭐ We value your feedback! Rate your experience here:\n{feedbackLink}\n\n— OMEGA SPA, Douala',
+      templateFr:
+        "Merci {clientName} pour votre visite chez OMEGA SPA ! 🌿 Nous espérons que vous avez apprécié votre prestation {service} avec {technician}. Votre solde fidélité : {loyaltyPoints} points.\n\n⭐ Votre avis compte énormément ! Donnez votre avis ici :\n{feedbackLink}\n\n— OMEGA SPA, Douala",
       timing: 'immediate',
     },
     PAYMENT_CONFIRMATION: {
       template:
         '🧾 *OMEGA SPA — Reçu / Receipt*\nFacture: {invoiceNumber}\nClient: {clientName}\n\n*Prestations / Services:*\n{itemsList}\n\n*Total Payé / Paid:* {amount} FCFA ({paymentMethod})\n*Points Fidélité / Loyalty:* {loyaltyPoints} pts\n\n⭐ *Votre avis compte pour nous / Rate your experience:*\n{feedbackLink}\n\nMerci pour votre visite chez OMEGA SPA ! 🌿\nBonamousadi, Douala · Tél: +237 6 53 14 62 69',
+      templateEn:
+        '🧾 *OMEGA SPA — Official Receipt*\nInvoice: {invoiceNumber}\nClient: {clientName}\n\n*Services & Products:*\n{itemsList}\n\n*Total Paid:* {amount} FCFA ({paymentMethod})\n*Loyalty Points:* {loyaltyPoints} pts\n\n⭐ *Rate your experience:*\n{feedbackLink}\n\nThank you for choosing OMEGA SPA! 🌿\nBonamousadi, Douala · Tel: +237 6 53 14 62 69',
+      templateFr:
+        '🧾 *OMEGA SPA — Reçu Officiel*\nFacture : {invoiceNumber}\nClient : {clientName}\n\n*Prestations & Produits :*\n{itemsList}\n\n*Total Payé :* {amount} FCFA ({paymentMethod})\n*Points Fidélité :* {loyaltyPoints} pts\n\n⭐ *Votre avis compte pour nous :*\n{feedbackLink}\n\nMerci de votre confiance chez OMEGA SPA ! 🌿\nBonamousadi, Douala · Tél : +237 6 53 14 62 69',
       timing: 'immediate',
     },
     REBOOKING: {
       template: 'Hello {clientName}, it has been {daysInactive} days since your last visit at OMEGA SPA. Your wellness routine misses you! Enjoy {discount}% off your next session. Contact us today to book!',
+      templateEn: 'Hello {clientName}, it has been {daysInactive} days since your last visit at OMEGA SPA. Your wellness routine misses you! Enjoy {discount}% off your next session. Contact us today to book!',
+      templateFr: "Bonjour {clientName}, cela fait déjà {daysInactive} jours depuis votre dernière visite chez OMEGA SPA. Votre bien-être nous tient à cœur ! Profitez de {discount}% de réduction sur votre prochaine séance. Contactez-nous pour réserver !",
       timing: '10:00',
     },
     DAILY_CLOSE_BOSS: {
       template: 'OMEGA SPA Daily Close Summary ({todayDate}): Total Revenue: {totalRevenue} FCFA | Clients Served: {clientsServed} | Cash: {cashAmount} FCFA | MoMo: {momoAmount} FCFA | Orange: {orangeAmount} FCFA.',
+      templateEn: 'OMEGA SPA Daily Close Summary ({todayDate}): Total Revenue: {totalRevenue} FCFA | Clients Served: {clientsServed} | Cash: {cashAmount} FCFA | MoMo: {momoAmount} FCFA | Orange: {orangeAmount} FCFA.',
+      templateFr: "OMEGA SPA Clôture Journalière ({todayDate}) : Chiffre d'Affaires Total : {totalRevenue} FCFA | Clients Servis : {clientsServed} | Espèces : {cashAmount} FCFA | MoMo : {momoAmount} FCFA | Orange : {orangeAmount} FCFA.",
       timing: '19:30',
     },
     CLIENT_WELCOME: {
       template:
         "Hello {clientName}! 😊 We’d love to welcome you to Omega Spa.\n\nIt’s the perfect time to take a break and treat yourself to some relaxation. ✨ Contact us or book your appointment whenever you're ready.\n\nWe look forward to seeing you soon! 💚",
+      templateEn:
+        "Hello {clientName}! 😊 We’d love to welcome you to Omega Spa.\n\nIt’s the perfect time to take a break and treat yourself to some relaxation. ✨ Contact us or book your appointment whenever you're ready.\n\nWe look forward to seeing you soon! 💚",
+      templateFr:
+        "Bonjour {clientName} ! 😊 Bienvenue chez Omega Spa.\n\nPrenez le temps de faire une pause détente bien méritée. ✨ Réservez votre séance de bien-être dès aujourd'hui.\n\nAu plaisir de vous accueillir ! 💚",
       timing: 'immediate',
+    },
+    REGULAR_WIN_BACK: {
+      template: 'Hello {clientName}! 🌿 We have missed having you at OMEGA SPA. As a special treat to welcome you back, enjoy an exclusive 20% discount on your next visit! Contact us today to claim your offer.',
+      templateEn: 'Hello {clientName}! 🌿 We have missed having you at OMEGA SPA. As a special treat to welcome you back, enjoy an exclusive 20% discount on your next visit! Contact us today to claim your offer.',
+      templateFr: "Bonjour {clientName} ! 🌿 Votre présence nous a manqué chez OMEGA SPA. Pour célébrer votre retour, profitez d'une réduction exclusive de 20% sur votre prochain soin ! Contactez-nous pour réserver.",
+      timing: 'immediate',
+    },
+    VIP_EXCLUSIVE_OFFER: {
+      template: 'Dear VIP Guest {clientName} ✨ Thank you for your continued loyalty to OMEGA SPA. We are delighted to present you with early VIP access to our luxury wellness packages and private offerings.',
+      templateEn: 'Dear VIP Guest {clientName} ✨ Thank you for your continued loyalty to OMEGA SPA. We are delighted to present you with early VIP access to our luxury wellness packages and private offerings.',
+      templateFr: 'Cher(e) client(e) VIP {clientName} ✨ Merci pour votre fidélité exceptionnelle chez OMEGA SPA. Nous avons le plaisir de vous offrir un accès privilégié à nos forfaits bien-être privés et offres exclusives.',
+      timing: 'immediate',
+    },
+    NEW_CLIENT_SECOND_OFFER: {
+      template: 'Hello {clientName}! ✨ We hope your first visit to OMEGA SPA was wonderful. To help keep your glow, enjoy 15% off your second visit within the next 14 days! We look forward to seeing you again.',
+      templateEn: 'Hello {clientName}! ✨ We hope your first visit to OMEGA SPA was wonderful. To help keep your glow, enjoy 15% off your second visit within the next 14 days! We look forward to seeing you again.',
+      templateFr: 'Bonjour {clientName} ! ✨ Nous espérons que votre premier soin chez OMEGA SPA vous a comblé(e). Pour prolonger vos bienfaits, bénéficiez de 15% de réduction sur votre 2ème visite dans les 14 jours !',
+      timing: '7d',
     },
   };
 
@@ -105,10 +147,15 @@ export class WhatsAppService {
       const autoType = type as WhatsAppAutomationType;
       await prisma.whatsAppAutomation.upsert({
         where: { type: autoType },
-        update: {},
+        update: {
+          templateEn: data.templateEn,
+          templateFr: data.templateFr,
+        },
         create: {
           type: autoType,
           template: data.template,
+          templateEn: data.templateEn,
+          templateFr: data.templateFr,
           timing: data.timing,
           isActive: true,
         },
@@ -152,22 +199,39 @@ export class WhatsAppService {
   /**
    * Update automation configuration (Manager only).
    * Direct upsert executes in a single database round-trip (~100-200ms).
+   * Module 2 Rule 6: Cannot activate template unless both English and French versions are valid.
    */
   async updateAutomation(type: WhatsAppAutomationType, input: UpdateAutomationInput) {
     const activeFlag = input.isActive !== undefined ? input.isActive : input.enabled;
     const timeVal = input.timing !== undefined ? input.timing : input.scheduleTime;
     const defaultData = this.defaultTemplates[type];
 
+    // Module 2 Rule 6: Validate both English and French versions before activation
+    if (activeFlag === true) {
+      const enVal = (input.templateEn !== undefined ? input.templateEn : input.template) || defaultData?.templateEn;
+      const frVal = input.templateFr !== undefined ? input.templateFr : defaultData?.templateFr;
+      if (!enVal || !enVal.trim() || !frVal || !frVal.trim()) {
+        throw new AppError(
+          'Cannot activate template: Both English and French template versions must exist and be valid.',
+          HTTP_STATUS.BAD_REQUEST
+        );
+      }
+    }
+
     const updated = await prisma.whatsAppAutomation.upsert({
       where: { type },
       create: {
         type,
         template: input.template !== undefined ? input.template.trim() : (defaultData?.template || ''),
+        templateEn: input.templateEn !== undefined ? input.templateEn.trim() : (defaultData?.templateEn || null),
+        templateFr: input.templateFr !== undefined ? input.templateFr.trim() : (defaultData?.templateFr || null),
         isActive: activeFlag !== undefined ? activeFlag : true,
         timing: timeVal !== undefined ? (timeVal ? timeVal.trim() : null) : (defaultData?.timing || null),
       },
       update: {
         template: input.template !== undefined ? input.template.trim() : undefined,
+        templateEn: input.templateEn !== undefined ? input.templateEn.trim() : undefined,
+        templateFr: input.templateFr !== undefined ? input.templateFr.trim() : undefined,
         isActive: activeFlag !== undefined ? activeFlag : undefined,
         timing: timeVal !== undefined ? (timeVal ? timeVal.trim() : null) : undefined,
       },
@@ -292,7 +356,18 @@ export class WhatsAppService {
       }
     }
 
-    // 2. Check if automation is active
+    // 2. Check client language and automation settings (Module 2 bilingual requirements)
+    let clientLang = 'FR';
+    if (clientId) {
+      const clientRecord = await prisma.client.findUnique({
+        where: { id: clientId },
+        select: { preferredLanguage: true },
+      });
+      if (clientRecord?.preferredLanguage) {
+        clientLang = clientRecord.preferredLanguage.toUpperCase();
+      }
+    }
+
     if (automationType && !skipActiveCheck) {
       const setting = await prisma.whatsAppAutomation.findUnique({
         where: { type: automationType },
@@ -312,6 +387,28 @@ export class WhatsAppService {
           },
         });
         return { alreadySent: false, log: skippedLog };
+      }
+
+      // Module 2 Rule 7 & 8: If French client and French template is missing, block delivery and never fallback to English
+      if (clientLang === 'FR' && setting) {
+        const frTemplate = setting.templateFr;
+        if (!frTemplate || !frTemplate.trim()) {
+          const blockedLog = await prisma.whatsAppMessageLog.create({
+            data: {
+              clientId,
+              invoiceId,
+              appointmentId,
+              automationType,
+              recipientPhone,
+              message,
+              status: WhatsAppMessageStatus.FAILED,
+              failureReason: 'Blocked: French template version is missing. English fallback is strictly forbidden for French clients.',
+              idempotencyKey,
+            },
+          });
+          logger.warn(`[WhatsApp Dispatch] Blocked delivery to ${recipientPhone}: French template version is missing.`);
+          return { alreadySent: false, log: blockedLog };
+        }
       }
     }
 
@@ -1331,6 +1428,66 @@ export class WhatsAppService {
       clientId: client.id,
       templateName: 'client_welcome',
       templateLanguage: 'en',
+      templateVariables: [clientName],
+    });
+  }
+
+  /**
+   * Win-Back message sent when a Regular client downgrades to Prospect
+   */
+  async triggerWinBack(clientId: string) {
+    const client = await prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) return { alreadySent: false, log: null, error: 'Client not found' };
+
+    const phone = client.phone || client.whatsapp;
+    if (!phone || !phone.trim()) return { alreadySent: false, log: null, error: 'Client has no phone number' };
+
+    const clientName = client.name ? client.name.trim() : 'Valued Guest';
+    const lang = (client.preferredLanguage || 'FR').toUpperCase();
+
+    const setting = await this.getAutomationByType(WhatsAppAutomationType.REGULAR_WIN_BACK);
+    const rawTemplate = (lang === 'FR' ? setting.templateFr : (lang === 'EN' ? setting.templateEn : (setting.templateFr || setting.template))) || setting.template;
+    const message = this.compileTemplate(rawTemplate, { clientName });
+    const idempotencyKey = `win-back:${clientId}:${new Date().toISOString().slice(0, 7)}`;
+
+    return this.dispatchMessage({
+      recipientPhone: phone.trim(),
+      message,
+      idempotencyKey,
+      automationType: WhatsAppAutomationType.REGULAR_WIN_BACK,
+      clientId: client.id,
+      templateName: 'regular_win_back',
+      templateLanguage: lang === 'EN' ? 'en' : 'fr',
+      templateVariables: [clientName],
+    });
+  }
+
+  /**
+   * VIP Exclusive offer/welcome sent when client attains VIP status
+   */
+  async triggerVipWelcome(clientId: string) {
+    const client = await prisma.client.findUnique({ where: { id: clientId } });
+    if (!client) return { alreadySent: false, log: null, error: 'Client not found' };
+
+    const phone = client.phone || client.whatsapp;
+    if (!phone || !phone.trim()) return { alreadySent: false, log: null, error: 'Client has no phone number' };
+
+    const clientName = client.name ? client.name.trim() : 'VIP Guest';
+    const lang = (client.preferredLanguage || 'FR').toUpperCase();
+
+    const setting = await this.getAutomationByType(WhatsAppAutomationType.VIP_EXCLUSIVE_OFFER);
+    const rawTemplate = (lang === 'FR' ? setting.templateFr : (lang === 'EN' ? setting.templateEn : (setting.templateFr || setting.template))) || setting.template;
+    const message = this.compileTemplate(rawTemplate, { clientName });
+    const idempotencyKey = `vip-welcome:${clientId}`;
+
+    return this.dispatchMessage({
+      recipientPhone: phone.trim(),
+      message,
+      idempotencyKey,
+      automationType: WhatsAppAutomationType.VIP_EXCLUSIVE_OFFER,
+      clientId: client.id,
+      templateName: 'vip_exclusive_offer',
+      templateLanguage: lang === 'EN' ? 'en' : 'fr',
       templateVariables: [clientName],
     });
   }

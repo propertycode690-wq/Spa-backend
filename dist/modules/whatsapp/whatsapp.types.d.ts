@@ -25,6 +25,8 @@ export interface AuthContextUser {
 }
 export interface UpdateAutomationInput {
     template?: string;
+    templateEn?: string;
+    templateFr?: string;
     isActive?: boolean;
     enabled?: boolean;
     timing?: string | null;

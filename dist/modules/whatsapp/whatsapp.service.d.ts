@@ -2,7 +2,7 @@ import { WhatsAppAutomationType, UpdateAutomationInput, SendCustomMessageInput, 
 export declare function normalizeAutomationType(input: string): WhatsAppAutomationType;
 export declare class WhatsAppService {
     /**
-     * Default message templates for all 8 automations.
+     * Default bilingual message templates for all automations (Phase 2A).
      */
     private readonly defaultTemplates;
     private hasSeeded;
@@ -20,6 +20,8 @@ export declare class WhatsAppService {
         updatedAt: Date;
         type: import(".prisma/client").$Enums.WhatsAppAutomationType;
         template: string;
+        templateEn: string | null;
+        templateFr: string | null;
         timing: string | null;
     }[]>;
     /**
@@ -32,11 +34,14 @@ export declare class WhatsAppService {
         updatedAt: Date;
         type: import(".prisma/client").$Enums.WhatsAppAutomationType;
         template: string;
+        templateEn: string | null;
+        templateFr: string | null;
         timing: string | null;
     }>;
     /**
      * Update automation configuration (Manager only).
      * Direct upsert executes in a single database round-trip (~100-200ms).
+     * Module 2 Rule 6: Cannot activate template unless both English and French versions are valid.
      */
     updateAutomation(type: WhatsAppAutomationType, input: UpdateAutomationInput): Promise<{
         id: string;
@@ -45,6 +50,8 @@ export declare class WhatsAppService {
         updatedAt: Date;
         type: import(".prisma/client").$Enums.WhatsAppAutomationType;
         template: string;
+        templateEn: string | null;
+        templateFr: string | null;
         timing: string | null;
     }>;
     /**
@@ -74,12 +81,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -97,12 +104,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -120,12 +127,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -157,12 +164,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -180,12 +187,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -213,12 +220,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -237,12 +244,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -260,12 +267,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -281,12 +288,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -316,12 +323,12 @@ export declare class WhatsAppService {
                 createdAt: Date;
                 updatedAt: Date;
                 status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-                clientId: string | null;
-                appointmentId: string | null;
                 failureReason: string | null;
                 providerMessageId: string | null;
                 sentAt: Date | null;
                 idempotencyKey: string;
+                clientId: string | null;
+                appointmentId: string | null;
                 invoiceId: string | null;
                 recipientPhone: string;
                 automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -337,12 +344,12 @@ export declare class WhatsAppService {
                 createdAt: Date;
                 updatedAt: Date;
                 status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-                clientId: string | null;
-                appointmentId: string | null;
                 failureReason: string | null;
                 providerMessageId: string | null;
                 sentAt: Date | null;
                 idempotencyKey: string;
+                clientId: string | null;
+                appointmentId: string | null;
                 invoiceId: string | null;
                 recipientPhone: string;
                 automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -373,12 +380,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -397,12 +404,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -425,12 +432,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -452,12 +459,66 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
+            invoiceId: string | null;
+            recipientPhone: string;
+            automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
+            scheduledFor: Date | null;
+        };
+    } | {
+        alreadySent: boolean;
+        log: null;
+        error: string;
+    }>;
+    /**
+     * Win-Back message sent when a Regular client downgrades to Prospect
+     */
+    triggerWinBack(clientId: string): Promise<{
+        alreadySent: boolean;
+        log: {
+            message: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
+            failureReason: string | null;
+            providerMessageId: string | null;
+            sentAt: Date | null;
+            idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
+            invoiceId: string | null;
+            recipientPhone: string;
+            automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
+            scheduledFor: Date | null;
+        };
+    } | {
+        alreadySent: boolean;
+        log: null;
+        error: string;
+    }>;
+    /**
+     * VIP Exclusive offer/welcome sent when client attains VIP status
+     */
+    triggerVipWelcome(clientId: string): Promise<{
+        alreadySent: boolean;
+        log: {
+            message: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
+            failureReason: string | null;
+            providerMessageId: string | null;
+            sentAt: Date | null;
+            idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -479,12 +540,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -509,8 +570,8 @@ export declare class WhatsAppService {
             } | null;
             invoice: {
                 id: string;
-                total: import("@prisma/client/runtime/library").Decimal;
                 invoiceNumber: string;
+                total: import("@prisma/client/runtime/library").Decimal;
             } | null;
         } & {
             message: string;
@@ -518,12 +579,12 @@ export declare class WhatsAppService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-            clientId: string | null;
-            appointmentId: string | null;
             failureReason: string | null;
             providerMessageId: string | null;
             sentAt: Date | null;
             idempotencyKey: string;
+            clientId: string | null;
+            appointmentId: string | null;
             invoiceId: string | null;
             recipientPhone: string;
             automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;
@@ -561,12 +622,12 @@ export declare class WhatsAppService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.WhatsAppMessageStatus;
-        clientId: string | null;
-        appointmentId: string | null;
         failureReason: string | null;
         providerMessageId: string | null;
         sentAt: Date | null;
         idempotencyKey: string;
+        clientId: string | null;
+        appointmentId: string | null;
         invoiceId: string | null;
         recipientPhone: string;
         automationType: import(".prisma/client").$Enums.WhatsAppAutomationType | null;

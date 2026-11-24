@@ -53,9 +53,9 @@ export declare class CommissionsService {
             invoice: {
                 id: string;
                 status: import(".prisma/client").$Enums.InvoiceStatus;
-                total: Prisma.Decimal;
                 date: Date;
                 invoiceNumber: string;
+                total: Prisma.Decimal;
             };
             technician: {
                 staffProfile: {
@@ -69,10 +69,10 @@ export declare class CommissionsService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.CommissionStatus;
+            invoiceId: string;
             notes: string | null;
             serviceId: string | null;
             technicianId: string;
-            invoiceId: string;
             appointmentServiceId: string | null;
             serviceCategory: string | null;
             serviceName: string;
@@ -127,9 +127,9 @@ export declare class CommissionsService {
             invoice: {
                 id: string;
                 status: import(".prisma/client").$Enums.InvoiceStatus;
-                total: Prisma.Decimal;
                 date: Date;
                 invoiceNumber: string;
+                total: Prisma.Decimal;
             };
             technician: {
                 staffProfile: {
@@ -143,10 +143,10 @@ export declare class CommissionsService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.CommissionStatus;
+            invoiceId: string;
             notes: string | null;
             serviceId: string | null;
             technicianId: string;
-            invoiceId: string;
             appointmentServiceId: string | null;
             serviceCategory: string | null;
             serviceName: string;
@@ -189,10 +189,10 @@ export declare class CommissionsService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.CommissionStatus;
+        invoiceId: string;
         notes: string | null;
         serviceId: string | null;
         technicianId: string;
-        invoiceId: string;
         appointmentServiceId: string | null;
         serviceCategory: string | null;
         serviceName: string;
@@ -215,10 +215,10 @@ export declare class CommissionsService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.CommissionStatus;
+        invoiceId: string;
         notes: string | null;
         serviceId: string | null;
         technicianId: string;
-        invoiceId: string;
         appointmentServiceId: string | null;
         serviceCategory: string | null;
         serviceName: string;
@@ -241,10 +241,10 @@ export declare class CommissionsService {
         createdAt: Date;
         updatedAt: Date;
         status: import(".prisma/client").$Enums.CommissionStatus;
+        invoiceId: string;
         notes: string | null;
         serviceId: string | null;
         technicianId: string;
-        invoiceId: string;
         appointmentServiceId: string | null;
         serviceCategory: string | null;
         serviceName: string;

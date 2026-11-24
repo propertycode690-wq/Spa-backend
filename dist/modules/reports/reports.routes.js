@@ -12,16 +12,16 @@ router.get('/technicians/me', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEP
 router.get('/technicians/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => reports_controller_1.reportsController.getTechnicianById(req, res, next));
 // All technicians performance list (Manager & Reception only; Technician & Cleaner blocked)
 router.get('/technicians', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => reports_controller_1.reportsController.getTechniciansPerformance(req, res, next));
-// Dashboard Summary Cards (Manager & Reception only; Technician & Cleaner blocked)
-router.get('/dashboard', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => reports_controller_1.reportsController.getDashboardSummary(req, res, next));
-// Revenue Report & Payment Method Breakdown (Manager & Reception only; Technician & Cleaner blocked)
-router.get('/revenue', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => reports_controller_1.reportsController.getRevenueReport(req, res, next));
-// Appointment Analytics (Manager & Reception only; Technician & Cleaner blocked)
-router.get('/appointments', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => reports_controller_1.reportsController.getAppointmentAnalytics(req, res, next));
-// Top Services Report (Manager & Reception only; Technician & Cleaner blocked)
-router.get('/top-services', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => reports_controller_1.reportsController.getTopServices(req, res, next));
-// Service Performance Analytics (Best, Worst, Ignored 0%) (Manager & Reception only)
-router.get('/service-performance', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => reports_controller_1.reportsController.getServicePerformance(req, res, next));
+// Dashboard Summary Cards (Manager, Reception & Marketer)
+router.get('/dashboard', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) => reports_controller_1.reportsController.getDashboardSummary(req, res, next));
+// Revenue Report & Payment Method Breakdown (Manager, Reception & Marketer)
+router.get('/revenue', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) => reports_controller_1.reportsController.getRevenueReport(req, res, next));
+// Appointment Analytics (Manager, Reception & Marketer)
+router.get('/appointments', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) => reports_controller_1.reportsController.getAppointmentAnalytics(req, res, next));
+// Top Services Report (Manager, Reception & Marketer)
+router.get('/top-services', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) => reports_controller_1.reportsController.getTopServices(req, res, next));
+// Service Performance Analytics (Best, Worst, Ignored 0%) (Manager, Reception & Marketer)
+router.get('/service-performance', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) => reports_controller_1.reportsController.getServicePerformance(req, res, next));
 // Stock Consumption Analytics (Manager & Reception only; Technician & Cleaner blocked)
 router.get('/stock-consumption', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => reports_controller_1.reportsController.getStockConsumptionReport(req, res, next));
 // Customer Analytics, Loyalty Growth & Rebooking (Manager & Reception only; Technician & Cleaner blocked)

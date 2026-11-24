@@ -1,0 +1,282 @@
+[
+  {
+    "id": "hol-new-year",
+    "code": "NEW_YEAR",
+    "name": "New Year's Day",
+    "category": "fixed",
+    "fixedMonth": 1,
+    "fixedDay": 1,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-youth-day",
+    "code": "YOUTH_DAY",
+    "name": "Youth Day (Cameroon)",
+    "category": "fixed",
+    "fixedMonth": 2,
+    "fixedDay": 11,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-valentines",
+    "code": "VALENTINES_DAY",
+    "name": "Valentine's Day",
+    "category": "fixed",
+    "fixedMonth": 2,
+    "fixedDay": 14,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-womens-day",
+    "code": "WOMENS_DAY",
+    "name": "International Women's Day",
+    "category": "fixed",
+    "fixedMonth": 3,
+    "fixedDay": 8,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-labour-day",
+    "code": "LABOUR_DAY",
+    "name": "Labour Day",
+    "category": "fixed",
+    "fixedMonth": 5,
+    "fixedDay": 1,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-national-day",
+    "code": "NATIONAL_DAY",
+    "name": "National Day (Cameroon)",
+    "category": "fixed",
+    "fixedMonth": 5,
+    "fixedDay": 20,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-africa-day",
+    "code": "AFRICA_DAY",
+    "name": "Africa Day",
+    "category": "fixed",
+    "fixedMonth": 5,
+    "fixedDay": 25,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-mandela-day",
+    "code": "MANDELA_DAY",
+    "name": "Nelson Mandela Day",
+    "category": "fixed",
+    "fixedMonth": 7,
+    "fixedDay": 18,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-friendship-day",
+    "code": "FRIENDSHIP_DAY",
+    "name": "International Friendship Day",
+    "category": "fixed",
+    "fixedMonth": 7,
+    "fixedDay": 30,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-assumption-day",
+    "code": "ASSUMPTION_DAY",
+    "name": "Assumption Day",
+    "category": "fixed",
+    "fixedMonth": 8,
+    "fixedDay": 15,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-peace-day",
+    "code": "PEACE_DAY",
+    "name": "International Day of Peace",
+    "category": "fixed",
+    "fixedMonth": 9,
+    "fixedDay": 21,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-mental-health",
+    "code": "MENTAL_HEALTH_DAY",
+    "name": "World Mental Health Day",
+    "category": "fixed",
+    "fixedMonth": 10,
+    "fixedDay": 10,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-halloween",
+    "code": "HALLOWEEN",
+    "name": "Halloween",
+    "category": "fixed",
+    "fixedMonth": 10,
+    "fixedDay": 31,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-christmas-day",
+    "code": "CHRISTMAS_DAY",
+    "name": "Christmas Day",
+    "category": "fixed",
+    "fixedMonth": 12,
+    "fixedDay": 25,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-boxing-day",
+    "code": "BOXING_DAY",
+    "name": "Boxing Day",
+    "category": "fixed",
+    "fixedMonth": 12,
+    "fixedDay": 26,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-new-years-eve",
+    "code": "NEW_YEARS_EVE",
+    "name": "New Year's Eve",
+    "category": "fixed",
+    "fixedMonth": 12,
+    "fixedDay": 31,
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-mlk-day",
+    "code": "MLK_DAY",
+    "name": "Martin Luther King Jr. Day",
+    "category": "variable",
+    "variableDates": {
+      "2026": "2026-01-19",
+      "2027": "2027-01-18",
+      "2028": "2028-01-17",
+      "2029": "2029-01-15",
+      "2030": "2030-01-21"
+    },
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-eid-al-fitr",
+    "code": "EID_AL_FITR",
+    "name": "Eid al-Fitr",
+    "category": "variable",
+    "variableDates": {
+      "2026": "2026-03-20",
+      "2027": "2027-03-10",
+      "2028": "2028-02-28",
+      "2029": "2029-02-15",
+      "2030": "2030-02-05"
+    },
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-good-friday",
+    "code": "GOOD_FRIDAY",
+    "name": "Good Friday",
+    "category": "variable",
+    "variableDates": {
+      "2026": "2026-04-03",
+      "2027": "2027-03-26",
+      "2028": "2028-04-14",
+      "2029": "2029-03-30",
+      "2030": "2030-04-19"
+    },
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-easter-sunday",
+    "code": "EASTER_SUNDAY",
+    "name": "Easter Sunday",
+    "category": "variable",
+    "variableDates": {
+      "2026": "2026-04-05",
+      "2027": "2027-03-28",
+      "2028": "2028-04-16",
+      "2029": "2029-04-01",
+      "2030": "2030-04-21"
+    },
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-ascension-day",
+    "code": "ASCENSION_DAY",
+    "name": "Ascension Day",
+    "category": "variable",
+    "variableDates": {
+      "2026": "2026-05-14",
+      "2027": "2027-05-06",
+      "2028": "2028-05-25",
+      "2029": "2029-05-10",
+      "2030": "2030-05-30"
+    },
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-mothers-day",
+    "code": "MOTHERS_DAY",
+    "name": "Mother's Day",
+    "category": "variable",
+    "variableDates": {
+      "2026": "2026-05-10",
+      "2027": "2027-05-09",
+      "2028": "2028-05-14",
+      "2029": "2029-05-13",
+      "2030": "2030-05-12"
+    },
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-eid-al-adha",
+    "code": "EID_AL_ADHA",
+    "name": "Eid al-Adha (Tabaski)",
+    "category": "variable",
+    "variableDates": {
+      "2026": "2026-05-27",
+      "2027": "2027-05-16",
+      "2028": "2028-05-05",
+      "2029": "2029-04-24",
+      "2030": "2030-04-14"
+    },
+    "isActive": true,
+    "timing": "09:00"
+  },
+  {
+    "id": "hol-fathers-day",
+    "code": "FATHERS_DAY",
+    "name": "Father's Day",
+    "category": "variable",
+    "variableDates": {
+      "2026": "2026-06-21",
+      "2027": "2027-06-20",
+      "2028": "2028-06-18",
+      "2029": "2029-06-17",
+      "2030": "2030-06-16"
+    },
+    "isActive": true,
+    "timing": "09:00"
+  }
+]

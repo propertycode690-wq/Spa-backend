@@ -46,12 +46,12 @@ export declare class MediaService {
     }): Promise<{
         id: string;
         createdAt: Date;
-        clientId: string;
         mediaType: import(".prisma/client").$Enums.MediaType;
         fileUrl: string;
+        note: string | null;
+        clientId: string;
         publicId: string | null;
         uploadedBy: string | null;
-        note: string | null;
     }>;
     /**
      * Upload Attendance photo (Clock-in or Clock-out verification selfie).
@@ -68,16 +68,16 @@ export declare class MediaService {
             createdAt: Date;
             updatedAt: Date;
             status: import(".prisma/client").$Enums.AttendanceStatus;
-            createdById: string | null;
             date: Date;
             reason: string | null;
+            createdById: string | null;
+            isManual: boolean;
             employeeId: string;
             clockInTime: Date | null;
             clockInPhoto: string | null;
             clockOutTime: Date | null;
             clockOutPhoto: string | null;
             workingHours: import("@prisma/client/runtime/library").Decimal | null;
-            isManual: boolean;
         };
     }>;
     /**
@@ -149,12 +149,12 @@ export declare class MediaService {
     getClientMedia(clientId: string): Promise<{
         id: string;
         createdAt: Date;
-        clientId: string;
         mediaType: import(".prisma/client").$Enums.MediaType;
         fileUrl: string;
+        note: string | null;
+        clientId: string;
         publicId: string | null;
         uploadedBy: string | null;
-        note: string | null;
     }[]>;
     /**
      * Delete media record and Cloudinary asset

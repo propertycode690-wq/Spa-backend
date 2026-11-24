@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -9,6 +42,7 @@ const client_1 = require("@prisma/client");
 const database_1 = __importDefault(require("../../config/database"));
 const errorHandler_1 = require("../../middleware/errorHandler");
 const constants_1 = require("../../config/constants");
+const clients_validation_1 = require("./clients.validation");
 /**
  * Safely parse a celebration date (Birthday or Anniversary).
  * Accepts:
@@ -156,6 +190,10 @@ class ClientsService {
         // Parse dates (supports full YYYY-MM-DD or Day-Month only)
         const birthday = parseCelebrationDate(data.birthday);
         const anniversary = parseCelebrationDate(data.anniversary);
+        // Normalize customer preferences (Phase 2A)
+        const gender = (0, clients_validation_1.normalizeGender)(data.gender);
+        const preferredLanguage = (0, clients_validation_1.normalizeLanguage)(data.preferredLanguage);
+        const holidayPreference = (0, clients_validation_1.normalizeHolidayPreference)(data.holidayPreference);
         // 3. Create client in database
         const client = await database_1.default.client.create({
             data: {
@@ -165,6 +203,9 @@ class ClientsService {
                 quartier: data.quartier ? data.quartier.trim() : null,
                 birthday,
                 anniversary,
+                gender,
+                preferredLanguage,
+                holidayPreference,
                 source,
                 introducedByEmployeeId,
                 referredByClientId,
@@ -183,6 +224,25 @@ class ClientsService {
                 },
             },
         });
+        // Record initial preference audit log if set during registration
+        const initialPrefs = [
+            { field: 'gender', val: gender },
+            { field: 'preferredLanguage', val: preferredLanguage },
+            { field: 'holidayPreference', val: holidayPreference },
+        ];
+        for (const p of initialPrefs) {
+            if (p.val && p.val !== 'NOT_PROVIDED' && p.val !== 'FR') {
+                await database_1.default.clientPreferenceAuditLog.create({
+                    data: {
+                        clientId: client.id,
+                        staffId: authUser.id,
+                        field: p.field,
+                        oldValue: null,
+                        newValue: p.val,
+                    },
+                }).catch(() => { });
+            }
+        }
         // 4. Create client history record: CLIENT_CREATED
         await database_1.default.clientHistory.create({
             data: {
@@ -218,6 +278,16 @@ class ClientsService {
             where.isActive = false;
         }
         // If rawStatus === 'ALL' or query.isActive === 'all' or empty, returns both active and inactive
+        // Customer segmentation & demographic query filters (Phase 2A)
+        if (query.gender && query.gender !== 'ALL') {
+            where.gender = (0, clients_validation_1.normalizeGender)(query.gender);
+        }
+        if (query.preferredLanguage && query.preferredLanguage !== 'ALL') {
+            where.preferredLanguage = (0, clients_validation_1.normalizeLanguage)(query.preferredLanguage);
+        }
+        if (query.holidayPreference && query.holidayPreference !== 'ALL') {
+            where.holidayPreference = (0, clients_validation_1.normalizeHolidayPreference)(query.holidayPreference);
+        }
         // Referral query filtering with role-based server-side isolation:
         // Marketers are strictly locked to their own introduced clients (req.user.id).
         // Technicians requesting referred clients are strictly locked to their own referrals (req.user.id).
@@ -427,10 +497,49 @@ class ClientsService {
         if (data.lastServiceDate !== undefined) {
             updateData.lastServiceDate = data.lastServiceDate ? new Date(data.lastServiceDate) : null;
         }
+        // Preference tracking & audit logging (Phase 2A)
+        const auditLogsToCreate = [];
+        if (data.gender !== undefined) {
+            const normalizedGender = (0, clients_validation_1.normalizeGender)(data.gender);
+            if (normalizedGender !== client.gender) {
+                auditLogsToCreate.push({ field: 'gender', oldValue: client.gender, newValue: normalizedGender });
+                updateData.gender = normalizedGender;
+            }
+        }
+        if (data.preferredLanguage !== undefined) {
+            const normalizedLang = (0, clients_validation_1.normalizeLanguage)(data.preferredLanguage);
+            if (normalizedLang !== client.preferredLanguage) {
+                auditLogsToCreate.push({ field: 'preferredLanguage', oldValue: client.preferredLanguage, newValue: normalizedLang });
+                updateData.preferredLanguage = normalizedLang;
+            }
+        }
+        if (data.holidayPreference !== undefined) {
+            const normalizedHoliday = (0, clients_validation_1.normalizeHolidayPreference)(data.holidayPreference);
+            if (normalizedHoliday !== client.holidayPreference) {
+                auditLogsToCreate.push({ field: 'holidayPreference', oldValue: client.holidayPreference, newValue: normalizedHoliday });
+                updateData.holidayPreference = normalizedHoliday;
+            }
+        }
         const updatedClient = await database_1.default.client.update({
             where: { id },
             data: updateData,
         });
+        // Write audit records for any changed preferences
+        if (auditLogsToCreate.length > 0) {
+            for (const log of auditLogsToCreate) {
+                await database_1.default.clientPreferenceAuditLog.create({
+                    data: {
+                        clientId: id,
+                        staffId: authUser.id,
+                        field: log.field,
+                        oldValue: log.oldValue,
+                        newValue: log.newValue,
+                    },
+                }).catch((err) => {
+                    console.warn('[ClientsService] Could not persist preference audit log:', err?.message || err);
+                });
+            }
+        }
         await database_1.default.clientHistory.create({
             data: {
                 clientId: id,
@@ -504,6 +613,58 @@ class ClientsService {
             where: { clientId },
             orderBy: { createdAt: 'desc' },
         });
+    }
+    /**
+     * Update client demographic preferences with audit logging (Phase 2A)
+     */
+    async updateClientPreferences(clientId, data, authUser) {
+        return this.updateClient(clientId, data, authUser);
+    }
+    /**
+     * Retrieve audit history of customer preference changes (Phase 2A)
+     */
+    async getPreferencesAudit(clientId) {
+        const client = await database_1.default.client.findUnique({ where: { id: clientId } });
+        if (!client) {
+            throw new errorHandler_1.AppError('Client not found', constants_1.HTTP_STATUS.NOT_FOUND);
+        }
+        return database_1.default.clientPreferenceAuditLog.findMany({
+            where: { clientId },
+            include: {
+                staff: {
+                    select: {
+                        id: true,
+                        email: true,
+                        staffProfile: { select: { name: true } },
+                    },
+                },
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+    /**
+     * Module 4: Manual override of Client Type (VIP, REGULAR, NEW, PROSPECT) with mandatory reason.
+     */
+    async updateClientType(clientId, input, authUser) {
+        const { clientClassificationService } = await Promise.resolve().then(() => __importStar(require('./clientClassification.service')));
+        return clientClassificationService.manualOverrideClientType(clientId, input, authUser);
+    }
+    /**
+     * Module 4: Get Client Type classification audit trail.
+     */
+    async getClientTypeAudit(clientId) {
+        const { clientClassificationService } = await Promise.resolve().then(() => __importStar(require('./clientClassification.service')));
+        return clientClassificationService.getClientTypeAudit(clientId);
+    }
+    /**
+     * Module 4: Trigger classification on demand (single or all active clients).
+     */
+    async runClassification(clientId) {
+        const { clientClassificationService } = await Promise.resolve().then(() => __importStar(require('./clientClassification.service')));
+        if (clientId) {
+            return clientClassificationService.classifyClient(clientId);
+        }
+        return clientClassificationService.classifyAllClients();
     }
 }
 exports.ClientsService = ClientsService;

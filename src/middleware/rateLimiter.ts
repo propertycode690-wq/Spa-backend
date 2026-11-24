@@ -9,10 +9,10 @@ import rateLimit from 'express-rate-limit';
  * 3. apiLimiter:     General — 100 requests per 1 minute per IP (general API protection)
  */
 
-// Strict rate limit for login endpoint — prevents brute-force password attacks
+// Strict rate limit for login endpoint — prevents brute-force password attacks (relaxed in development)
 export const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 login attempts per window
+  max: process.env.NODE_ENV === 'development' ? 1000 : 5, // Relaxed for local testing
   message: {
     success: false,
     message: 'Too many login attempts. Please try again after 15 minutes.',
@@ -25,7 +25,7 @@ export const loginLimiter = rateLimit({
 // Moderate rate limit for sensitive auth-related endpoints
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 20, // 20 requests per window
+  max: process.env.NODE_ENV === 'development' ? 5000 : 20, // Relaxed in dev
   message: {
     success: false,
     message: 'Too many requests to authentication endpoints. Please try again later.',
@@ -37,7 +37,7 @@ export const authLimiter = rateLimit({
 // General API rate limit — protects all routes from abuse/DoS
 export const apiLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
-  max: 100, // 100 requests per minute per IP
+  max: process.env.NODE_ENV === 'development' ? 10000 : 100, // Relaxed in dev
   message: {
     success: false,
     message: 'Too many requests. Please slow down and try again in a minute.',

@@ -7,8 +7,8 @@ const router = Router();
 
 router.use(authMiddleware);
 
-// GET /api/v1/expenses — Manager and Reception can view expenses
-router.get('/', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+// GET /api/v1/expenses — Manager, Reception and Marketer can view expenses
+router.get('/', allowRoles('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) =>
   expensesController.getExpenses(req, res, next)
 );
 

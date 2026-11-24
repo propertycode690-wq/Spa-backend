@@ -20,16 +20,16 @@ export declare const createExpenseSchema: z.ZodObject<{
     }>, "CASH" | "MTN_MOMO" | "ORANGE_MONEY", unknown>;
     note: z.ZodString;
 }, "strip", z.ZodTypeAny, {
-    category: "ELECTRICITY" | "WATER" | "GENERATOR_FUEL" | "GENERATOR_FUEL_GAS" | "MAINTENANCE" | "REPAIRS" | "RENT" | "CLEANING_SUPPLIES" | "OTHER";
-    note: string;
     date: string;
+    note: string;
+    category: "ELECTRICITY" | "WATER" | "GENERATOR_FUEL" | "GENERATOR_FUEL_GAS" | "MAINTENANCE" | "REPAIRS" | "RENT" | "CLEANING_SUPPLIES" | "OTHER";
     amount: number;
     paymentMethod: "CASH" | "MTN_MOMO" | "ORANGE_MONEY";
 }, {
     note: string;
     amount: number;
-    category?: unknown;
     date?: string | undefined;
+    category?: unknown;
     paymentMethod?: unknown;
 }>;
 export declare const expenseQuerySchema: z.ZodObject<{
@@ -53,14 +53,14 @@ export declare const expenseQuerySchema: z.ZodObject<{
     startDate: z.ZodOptional<z.ZodString>;
     endDate: z.ZodOptional<z.ZodString>;
 }, "strip", z.ZodTypeAny, {
-    category?: "ELECTRICITY" | "WATER" | "GENERATOR_FUEL" | "GENERATOR_FUEL_GAS" | "MAINTENANCE" | "REPAIRS" | "RENT" | "CLEANING_SUPPLIES" | "OTHER" | undefined;
     date?: string | undefined;
+    category?: "ELECTRICITY" | "WATER" | "GENERATOR_FUEL" | "GENERATOR_FUEL_GAS" | "MAINTENANCE" | "REPAIRS" | "RENT" | "CLEANING_SUPPLIES" | "OTHER" | undefined;
     paymentMethod?: "CASH" | "MTN_MOMO" | "ORANGE_MONEY" | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;
 }, {
-    category?: "ELECTRICITY" | "WATER" | "GENERATOR_FUEL" | "GENERATOR_FUEL_GAS" | "MAINTENANCE" | "REPAIRS" | "RENT" | "CLEANING_SUPPLIES" | "OTHER" | undefined;
     date?: string | undefined;
+    category?: "ELECTRICITY" | "WATER" | "GENERATOR_FUEL" | "GENERATOR_FUEL_GAS" | "MAINTENANCE" | "REPAIRS" | "RENT" | "CLEANING_SUPPLIES" | "OTHER" | undefined;
     paymentMethod?: "CASH" | "MTN_MOMO" | "ORANGE_MONEY" | undefined;
     startDate?: string | undefined;
     endDate?: string | undefined;

@@ -13,9 +13,19 @@ router.post('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHN
 router.get('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => clients_controller_1.clientsController.getClients(req, res, next));
 // GET /api/v1/clients/:id — Client Details (Manager, Reception, Technician, Marketer)
 router.get('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => clients_controller_1.clientsController.getClientById(req, res, next));
-// PUT /api/v1/clients/:id & PATCH /api/v1/clients/:id — Update Client (Manager, Reception only; Technician forbidden)
-router.put('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => clients_controller_1.clientsController.updateClient(req, res, next));
-router.patch('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => clients_controller_1.clientsController.updateClient(req, res, next));
+// PUT /api/v1/clients/:id & PATCH /api/v1/clients/:id — Update Client (Manager, Reception, Marketer)
+router.put('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) => clients_controller_1.clientsController.updateClient(req, res, next));
+router.patch('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) => clients_controller_1.clientsController.updateClient(req, res, next));
+// PATCH /api/v1/clients/:id/preferences — Update Client Preferences (Manager, Reception, Marketer)
+router.patch('/:id/preferences', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) => clients_controller_1.clientsController.updatePreferences(req, res, next));
+// GET /api/v1/clients/:id/preferences-audit — Client Preferences Audit History (Manager, Reception, Marketer)
+router.get('/:id/preferences-audit', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) => clients_controller_1.clientsController.getPreferencesAudit(req, res, next));
+// POST /api/v1/clients/run-classification — Run Classification on demand (Manager)
+router.post('/run-classification', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => clients_controller_1.clientsController.runClassification(req, res, next));
+// PATCH /api/v1/clients/:id/client-type — Manual Client Type Override (Manager, Reception, Marketer)
+router.patch('/:id/client-type', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) => clients_controller_1.clientsController.updateClientType(req, res, next));
+// GET /api/v1/clients/:id/type-audit — Client Type Classification Audit History (Manager, Reception, Marketer)
+router.get('/:id/type-audit', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) => clients_controller_1.clientsController.getClientTypeAudit(req, res, next));
 // PATCH /api/v1/clients/:id/status — Set Status (Manager, Reception)
 router.patch('/:id/status', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => clients_controller_1.clientsController.setClientStatus(req, res, next));
 // POST /api/v1/clients/:id/activate & /restore — Restore Active (Manager, Reception)

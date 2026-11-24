@@ -35,9 +35,9 @@ export declare class AppointmentsService {
             service: {
                 id: string;
                 name: string;
-                price: import("@prisma/client/runtime/library").Decimal;
                 category: string;
                 duration: number;
+                price: import("@prisma/client/runtime/library").Decimal;
             } | null;
             technician: {
                 staffProfile: {
@@ -52,9 +52,9 @@ export declare class AppointmentsService {
             updatedAt: Date;
             status: import(".prisma/client").$Enums.AppointmentServiceStatus;
             appointmentId: string;
+            price: import("@prisma/client/runtime/library").Decimal;
             serviceId: string | null;
             technicianId: string;
-            price: import("@prisma/client/runtime/library").Decimal;
             completedAt: Date | null;
         })[];
     } & {
@@ -63,8 +63,8 @@ export declare class AppointmentsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.AppointmentStatus;
         clientId: string;
-        appointmentDate: Date;
         mainTechnicianId: string;
+        appointmentDate: Date;
         appointmentTime: string;
         serviceSummary: string | null;
         notes: string | null;
@@ -92,9 +92,9 @@ export declare class AppointmentsService {
                 service: {
                     id: string;
                     name: string;
-                    price: import("@prisma/client/runtime/library").Decimal;
                     category: string;
                     duration: number;
+                    price: import("@prisma/client/runtime/library").Decimal;
                 } | null;
                 technician: {
                     staffProfile: {
@@ -109,9 +109,9 @@ export declare class AppointmentsService {
                 updatedAt: Date;
                 status: import(".prisma/client").$Enums.AppointmentServiceStatus;
                 appointmentId: string;
+                price: import("@prisma/client/runtime/library").Decimal;
                 serviceId: string | null;
                 technicianId: string;
-                price: import("@prisma/client/runtime/library").Decimal;
                 completedAt: Date | null;
             })[];
         } & {
@@ -120,8 +120,8 @@ export declare class AppointmentsService {
             updatedAt: Date;
             status: import(".prisma/client").$Enums.AppointmentStatus;
             clientId: string;
-            appointmentDate: Date;
             mainTechnicianId: string;
+            appointmentDate: Date;
             appointmentTime: string;
             serviceSummary: string | null;
             notes: string | null;
@@ -164,9 +164,9 @@ export declare class AppointmentsService {
             service: {
                 id: string;
                 name: string;
-                price: import("@prisma/client/runtime/library").Decimal;
                 category: string;
                 duration: number;
+                price: import("@prisma/client/runtime/library").Decimal;
             } | null;
             technician: {
                 staffProfile: {
@@ -181,9 +181,9 @@ export declare class AppointmentsService {
             updatedAt: Date;
             status: import(".prisma/client").$Enums.AppointmentServiceStatus;
             appointmentId: string;
+            price: import("@prisma/client/runtime/library").Decimal;
             serviceId: string | null;
             technicianId: string;
-            price: import("@prisma/client/runtime/library").Decimal;
             completedAt: Date | null;
         })[];
     } & {
@@ -192,8 +192,8 @@ export declare class AppointmentsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.AppointmentStatus;
         clientId: string;
-        appointmentDate: Date;
         mainTechnicianId: string;
+        appointmentDate: Date;
         appointmentTime: string;
         serviceSummary: string | null;
         notes: string | null;
@@ -229,9 +229,9 @@ export declare class AppointmentsService {
             service: {
                 id: string;
                 name: string;
-                price: import("@prisma/client/runtime/library").Decimal;
                 category: string;
                 duration: number;
+                price: import("@prisma/client/runtime/library").Decimal;
             } | null;
             technician: {
                 staffProfile: {
@@ -246,9 +246,9 @@ export declare class AppointmentsService {
             updatedAt: Date;
             status: import(".prisma/client").$Enums.AppointmentServiceStatus;
             appointmentId: string;
+            price: import("@prisma/client/runtime/library").Decimal;
             serviceId: string | null;
             technicianId: string;
-            price: import("@prisma/client/runtime/library").Decimal;
             completedAt: Date | null;
         })[];
     } & {
@@ -257,8 +257,8 @@ export declare class AppointmentsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.AppointmentStatus;
         clientId: string;
-        appointmentDate: Date;
         mainTechnicianId: string;
+        appointmentDate: Date;
         appointmentTime: string;
         serviceSummary: string | null;
         notes: string | null;
@@ -294,9 +294,9 @@ export declare class AppointmentsService {
             service: {
                 id: string;
                 name: string;
-                price: import("@prisma/client/runtime/library").Decimal;
                 category: string;
                 duration: number;
+                price: import("@prisma/client/runtime/library").Decimal;
             } | null;
             technician: {
                 staffProfile: {
@@ -311,9 +311,9 @@ export declare class AppointmentsService {
             updatedAt: Date;
             status: import(".prisma/client").$Enums.AppointmentServiceStatus;
             appointmentId: string;
+            price: import("@prisma/client/runtime/library").Decimal;
             serviceId: string | null;
             technicianId: string;
-            price: import("@prisma/client/runtime/library").Decimal;
             completedAt: Date | null;
         })[];
     } & {
@@ -322,8 +322,8 @@ export declare class AppointmentsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.AppointmentStatus;
         clientId: string;
-        appointmentDate: Date;
         mainTechnicianId: string;
+        appointmentDate: Date;
         appointmentTime: string;
         serviceSummary: string | null;
         notes: string | null;
@@ -359,9 +359,9 @@ export declare class AppointmentsService {
             service: {
                 id: string;
                 name: string;
-                price: import("@prisma/client/runtime/library").Decimal;
                 category: string;
                 duration: number;
+                price: import("@prisma/client/runtime/library").Decimal;
             } | null;
             technician: {
                 staffProfile: {
@@ -376,9 +376,9 @@ export declare class AppointmentsService {
             updatedAt: Date;
             status: import(".prisma/client").$Enums.AppointmentServiceStatus;
             appointmentId: string;
+            price: import("@prisma/client/runtime/library").Decimal;
             serviceId: string | null;
             technicianId: string;
-            price: import("@prisma/client/runtime/library").Decimal;
             completedAt: Date | null;
         })[];
     } & {
@@ -387,8 +387,8 @@ export declare class AppointmentsService {
         updatedAt: Date;
         status: import(".prisma/client").$Enums.AppointmentStatus;
         clientId: string;
-        appointmentDate: Date;
         mainTechnicianId: string;
+        appointmentDate: Date;
         appointmentTime: string;
         serviceSummary: string | null;
         notes: string | null;

@@ -19,16 +19,27 @@ export declare class FeedbackService {
                 quartier: string | null;
                 birthday: Date | null;
                 anniversary: Date | null;
+                gender: string;
+                preferredLanguage: string;
+                holidayPreference: string;
+                clientType: string;
                 source: import(".prisma/client").$Enums.ClientSource;
                 introducedByEmployeeId: string | null;
                 referredByClientId: string | null;
                 recommendedByName: string | null;
                 recommendedByPhone: string | null;
+                lastServiceDate: Date | null;
                 recommendedByDate: Date | null;
                 firstAppointmentService: string | null;
+                isVipManuallyAssigned: boolean;
+                vipAssignedAt: Date | null;
+                lastClassificationAt: Date | null;
+                totalEligibleSpend: import("@prisma/client/runtime/library").Decimal;
+                paidVisitsCount: number;
                 noShowCount: number;
                 lastVisitAt: Date | null;
-                lastServiceDate: Date | null;
+                referredByPromoCodeId: string | null;
+                referredByInfluencerId: string | null;
             } | null;
         } & {
             id: string;

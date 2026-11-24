@@ -29,6 +29,10 @@ exports.createInvoiceSchema = zod_1.z.preprocess((val) => {
     date: zod_1.z.union([zod_1.z.string(), zod_1.z.date()]).optional().nullable(),
     invoiceNumber: zod_1.z.string().optional().nullable(),
     discount: zod_1.z.number().nonnegative('Discount cannot be negative').optional().default(0),
+    promoCode: zod_1.z.string().optional().nullable(),
+    promoCodeId: zod_1.z.string().uuid().optional().nullable(),
+    promoDiscount: zod_1.z.number().nonnegative().optional().default(0),
+    vipDiscount: zod_1.z.number().nonnegative().optional().default(0),
     status: zod_1.z.enum([client_1.InvoiceStatus.DRAFT, client_1.InvoiceStatus.PENDING_PAYMENT, client_1.InvoiceStatus.PAID]).optional().default(client_1.InvoiceStatus.PENDING_PAYMENT),
     paymentMethod: zod_1.z.enum(['CASH', 'MTN_MOMO', 'ORANGE_MONEY']).optional(),
     payments: zod_1.z
@@ -70,6 +74,10 @@ exports.addInvoiceItemSchema = zod_1.z.object({
 });
 exports.updateInvoiceSchema = zod_1.z.object({
     discount: zod_1.z.number().nonnegative('Discount cannot be negative').optional(),
+    promoCode: zod_1.z.string().optional().nullable(),
+    promoCodeId: zod_1.z.string().uuid().optional().nullable(),
+    promoDiscount: zod_1.z.number().nonnegative().optional(),
+    vipDiscount: zod_1.z.number().nonnegative().optional(),
     status: zod_1.z.enum([client_1.InvoiceStatus.DRAFT, client_1.InvoiceStatus.PENDING_PAYMENT]).optional(),
     pointsRedeemed: zod_1.z.number().int().nonnegative().optional(),
     pointsEarned: zod_1.z.number().int().nonnegative().optional(),

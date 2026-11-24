@@ -22,28 +22,28 @@ router.get('/technicians', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) 
   reportsController.getTechniciansPerformance(req, res, next)
 );
 
-// Dashboard Summary Cards (Manager & Reception only; Technician & Cleaner blocked)
-router.get('/dashboard', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+// Dashboard Summary Cards (Manager, Reception & Marketer)
+router.get('/dashboard', allowRoles('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) =>
   reportsController.getDashboardSummary(req, res, next)
 );
 
-// Revenue Report & Payment Method Breakdown (Manager & Reception only; Technician & Cleaner blocked)
-router.get('/revenue', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+// Revenue Report & Payment Method Breakdown (Manager, Reception & Marketer)
+router.get('/revenue', allowRoles('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) =>
   reportsController.getRevenueReport(req, res, next)
 );
 
-// Appointment Analytics (Manager & Reception only; Technician & Cleaner blocked)
-router.get('/appointments', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+// Appointment Analytics (Manager, Reception & Marketer)
+router.get('/appointments', allowRoles('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) =>
   reportsController.getAppointmentAnalytics(req, res, next)
 );
 
-// Top Services Report (Manager & Reception only; Technician & Cleaner blocked)
-router.get('/top-services', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+// Top Services Report (Manager, Reception & Marketer)
+router.get('/top-services', allowRoles('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) =>
   reportsController.getTopServices(req, res, next)
 );
 
-// Service Performance Analytics (Best, Worst, Ignored 0%) (Manager & Reception only)
-router.get('/service-performance', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
+// Service Performance Analytics (Best, Worst, Ignored 0%) (Manager, Reception & Marketer)
+router.get('/service-performance', allowRoles('MANAGER', 'RECEPTION', 'MARKETER'), (req, res, next) =>
   reportsController.getServicePerformance(req, res, next)
 );
 
