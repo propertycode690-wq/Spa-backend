@@ -255,6 +255,7 @@ model StaffProfile {
 
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  @@map("staffprofile")
 }
 
 model Client {
@@ -334,6 +335,7 @@ model ClientMedia {
   createdAt  DateTime  @default(now())
 
   @@index([clientId])
+  @@map("clientmedia")
 }
 
 model ClientHistory {
@@ -346,6 +348,7 @@ model ClientHistory {
   createdAt   DateTime @default(now())
 
   @@index([clientId])
+  @@map("clienthistory")
 }
 
 model Service {
@@ -363,6 +366,7 @@ model Service {
 
   @@index([category])
   @@index([status])
+ @@map("service")
 }
 
 model Appointment {
@@ -392,6 +396,7 @@ model Appointment {
   @@index([appointmentDate])
   @@index([status])
   @@index([mainTechnicianId, appointmentDate])
+  @@map("appointment")
 }
 
 model AppointmentService {
@@ -413,6 +418,7 @@ model AppointmentService {
   @@index([serviceId])
   @@index([technicianId])
   @@index([status])
+  @@map("appointmentservice")
 }
 
 model Invoice {
@@ -450,6 +456,7 @@ model Invoice {
   @@index([status])
   @@index([date])
   @@index([promoCodeId])
+  @@map("invoice")
 }
 
 model InvoiceItem {
@@ -476,6 +483,7 @@ model InvoiceItem {
   @@index([serviceId])
   @@index([retailProductId])
   @@index([technicianId])
+  @@map("invoiceitem")
 }
 
 model Payment {
@@ -495,6 +503,7 @@ model Payment {
   @@index([receivedById])
   @@index([paymentMethod])
   @@index([paidAt])
+  @@map("payment")
 }
 
 model ServiceStock {
@@ -512,6 +521,7 @@ model ServiceStock {
   @@index([name])
   @@index([category])
   @@index([isActive])
+  @@map("servicestock")
 }
 
 model StockActivity {
@@ -530,6 +540,7 @@ model StockActivity {
   @@index([type])
   @@index([createdById])
   @@index([createdAt])
+  @@map("stockactivity")
 }
 
 model ServiceStockDailyAudit {
@@ -556,6 +567,7 @@ model ServiceStockDailyAudit {
   @@index([date])
   @@index([serviceStockId])
   @@index([status])
+  @@map("servicestockdailyaudit")
 }
 
 
@@ -574,6 +586,7 @@ model RetailProduct {
   @@index([name])
   @@index([category])
   @@index([isActive])
+  @@map("retailproduct")
 }
 
 model Attendance {
@@ -599,6 +612,7 @@ model Attendance {
   @@index([date])
   @@index([status])
   @@index([createdById])
+  @@map("attendance")
 }
 
 model Expense {
@@ -616,6 +630,7 @@ model Expense {
   @@index([date])
   @@index([category])
   @@index([createdById])
+  @@map("expense")
 }
 
 model CommissionRule {
@@ -631,6 +646,7 @@ model CommissionRule {
 
   @@index([type])
   @@index([isActive])
+  @@map("commissionrule")
 }
 
 model EmployeeCommission {
@@ -653,6 +669,7 @@ model EmployeeCommission {
   @@index([invoiceId])
   @@index([commissionRuleId])
   @@index([status])
+  @@map("employeecommission")
 }
 
 model TechnicianCommission {
@@ -690,6 +707,7 @@ model TechnicianCommission {
   @@index([employeeCommissionId])
   @@index([status])
   @@index([createdAt])
+  @@map("techniciancommission")
 }
 
 model CommissionActivity {
@@ -708,6 +726,7 @@ model CommissionActivity {
   @@index([technicianCommissionId])
   @@index([type])
   @@index([performedById])
+  @@map("techniciancommission")
 }
 
 model LoyaltySetting {
@@ -725,6 +744,7 @@ model LoyaltySetting {
   isActive                Boolean  @default(true)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
+  @@map("techniciancommission")
 }
 
 model ClientLoyalty {
@@ -738,6 +758,7 @@ model ClientLoyalty {
   updatedAt     DateTime @updatedAt
 
   @@index([clientId])
+  @@map("techniciancommission")
 }
 
 model LoyaltyTransaction {
@@ -757,6 +778,7 @@ model LoyaltyTransaction {
   @@index([invoiceId])
   @@index([type])
   @@index([date])
+  @@map("techniciancommission")
 }
 
 model WhatsAppAutomation {
@@ -801,6 +823,7 @@ model WhatsAppMessageLog {
   @@index([automationType])
   @@index([status])
   @@index([createdAt])
+  @@map("whatsappmessagelog")
 }
 
 model SocialMediaAccount {
@@ -817,6 +840,7 @@ model SocialMediaAccount {
 
   @@index([platform])
   @@index([isConnected])
+  @@map("socialmediaaccount")
 }
 
 model SocialPost {
@@ -857,6 +881,7 @@ model ClientFeedback {
   @@index([clientId])
   @@index([appointmentId])
   @@index([rating])
+  @@map("clientfeedback")
 }
 
 model Specialty {
@@ -868,6 +893,7 @@ model Specialty {
 
   @@index([name])
   @@index([isActive])
+  @@map("specialty")
 }
 
 // Phase 23: Cleaning Proof Records
@@ -889,6 +915,7 @@ model CleaningRecord {
 
   @@index([cleanerId])
   @@index([createdAt])
+  @@map("cleaningrecord")
 }
 
 model CleaningMedia {
@@ -901,6 +928,7 @@ model CleaningMedia {
   createdAt        DateTime       @default(now())
 
   @@index([cleaningRecordId])
+  @@map("cleaningmedia")
 }
 
 model StaffPenalty {
@@ -919,6 +947,7 @@ model StaffPenalty {
   @@index([staffId])
   @@index([date])
   @@index([recordedById])
+  @@map("staffpenalty")
 }
 
 model MonthlyPayrollRecord {
@@ -946,6 +975,7 @@ model MonthlyPayrollRecord {
   @@unique([employeeId, periodYearMonth])
   @@index([periodYearMonth])
   @@index([isFinalized])
+  @@map("monthlypayrollrecord")
 }
 
 // Phase 25: Job Seekers & Recruitment Management
@@ -981,6 +1011,7 @@ model JobSeeker {
   @@index([phone])
   @@index([createdById])
   @@index([appliedDate])
+  @@map("jobseeker")
 }
 
 model ClientPreferenceAuditLog {
@@ -997,6 +1028,7 @@ model ClientPreferenceAuditLog {
   @@index([clientId])
   @@index([staffId])
   @@index([createdAt])
+  @@map("clientpreferenceauditlog")
 }
 
 model ClientTypeAuditLog {
@@ -1015,6 +1047,7 @@ model ClientTypeAuditLog {
   @@index([staffId])
   @@index([createdAt])
   @@index([newType])
+  @@map("clienttypeauditlog")
 }
 
 
@@ -1056,6 +1089,7 @@ model Influencer {
 
   @@index([phone])
   @@index([status])
+  @@map("influencer")
 }
 
 model PromoCode {
@@ -1082,6 +1116,7 @@ model PromoCode {
   @@index([influencerId])
   @@index([code])
   @@index([isActive])
+  @@map("promocode")
 }
 
 model PromoCodeUsage {
@@ -1098,6 +1133,7 @@ model PromoCodeUsage {
   @@index([promoCodeId])
   @@index([invoiceId])
   @@index([clientId])
+  @@map("promocodeusage")
 }
 
 model InfluencerCommission {
@@ -1127,6 +1163,7 @@ model InfluencerCommission {
   @@index([invoiceId])
   @@index([payoutId])
   @@index([status])
+  @@map("influencercommission")
 }
 
 model InfluencerPayout {
@@ -1145,4 +1182,5 @@ model InfluencerPayout {
   @@index([influencerId])
   @@index([paidById])
   @@index([paidAt])
+  @@map("influencerpayout")
 }
