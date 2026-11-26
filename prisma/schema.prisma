@@ -769,6 +769,7 @@ model WhatsAppAutomation {
 
   @@index([type])
   @@index([isActive])
+  @@map("whatsappautomation")
 }
 
 model WhatsAppMessageLog {
