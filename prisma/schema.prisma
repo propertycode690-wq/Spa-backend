@@ -833,6 +833,7 @@ model SocialPost {
   @@index([status])
   @@index([scheduledFor])
   @@index([createdAt])
+  @@map("socialpost")
 }
 
 
