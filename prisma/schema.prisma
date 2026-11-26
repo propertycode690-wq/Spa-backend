@@ -234,6 +234,7 @@ model User {
   recordedInfluencerPayouts     InfluencerPayout[]       @relation("InfluencerPayoutPaidBy")
 
   @@index([roleId])
+  @@map("user")
 }
 
 model StaffProfile {
@@ -316,6 +317,7 @@ model Client {
   @@index([preferredLanguage])
   @@index([holidayPreference])
   @@index([clientType])
+  @@map("client")
 }
 
 
