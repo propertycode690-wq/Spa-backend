@@ -1,6 +1,6 @@
 import { SpecialtyResponse, CreateSpecialtyInput, UpdateSpecialtyInput } from './specialties.types';
 export declare class SpecialtiesService {
-    private formatRow;
+    private formatItem;
     getSpecialties(): Promise<SpecialtyResponse[]>;
     getSpecialtyById(id: string): Promise<SpecialtyResponse>;
     createSpecialty(input: CreateSpecialtyInput): Promise<SpecialtyResponse>;

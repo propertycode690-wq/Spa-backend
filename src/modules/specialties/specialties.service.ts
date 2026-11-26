@@ -1,38 +1,56 @@
-import { randomUUID } from 'crypto';
 import prisma from '../../config/database';
 import { AppError } from '../../middleware/errorHandler';
 import { HTTP_STATUS } from '../../config/constants';
 import { SpecialtyResponse, CreateSpecialtyInput, UpdateSpecialtyInput } from './specialties.types';
 
 export class SpecialtiesService {
-  private formatRow(row: any): SpecialtyResponse {
-    const isActive = Boolean(row.isActive);
+  private formatItem(item: any): SpecialtyResponse {
+    const isActive = Boolean(item.isActive);
     return {
-      id: String(row.id),
-      name: String(row.name),
+      id: String(item.id),
+      name: String(item.name),
       isActive,
       active: isActive,
-      createdAt: row.createdAt,
-      updatedAt: row.updatedAt,
+      createdAt: item.createdAt,
+      updatedAt: item.updatedAt,
     };
   }
 
   async getSpecialties(): Promise<SpecialtyResponse[]> {
-    const rows = await prisma.$queryRawUnsafe<any[]>(
-      'SELECT id, name, isActive, createdAt, updatedAt FROM `Specialty` ORDER BY name ASC'
-    );
-    return rows.map((r) => this.formatRow(r));
+    try {
+      const items = await prisma.specialty.findMany({
+        orderBy: { name: 'asc' },
+      });
+      return items.map((s) => this.formatItem(s));
+    } catch (e: any) {
+      // Fallback in case raw query is needed with lowercase table name
+      const rows = await prisma.$queryRawUnsafe<any[]>(
+        'SELECT id, name, isActive, createdAt, updatedAt FROM `specialty` ORDER BY name ASC'
+      );
+      return rows.map((r) => this.formatItem(r));
+    }
   }
 
   async getSpecialtyById(id: string): Promise<SpecialtyResponse> {
-    const rows = await prisma.$queryRawUnsafe<any[]>(
-      'SELECT id, name, isActive, createdAt, updatedAt FROM `Specialty` WHERE id = ? LIMIT 1',
-      id
-    );
-    if (!rows || rows.length === 0) {
-      throw new AppError('Specialty not found', HTTP_STATUS.NOT_FOUND);
+    try {
+      const item = await prisma.specialty.findUnique({
+        where: { id },
+      });
+      if (!item) {
+        throw new AppError('Specialty not found', HTTP_STATUS.NOT_FOUND);
+      }
+      return this.formatItem(item);
+    } catch (e: any) {
+      if (e instanceof AppError) throw e;
+      const rows = await prisma.$queryRawUnsafe<any[]>(
+        'SELECT id, name, isActive, createdAt, updatedAt FROM `specialty` WHERE id = ? LIMIT 1',
+        id
+      );
+      if (!rows || rows.length === 0) {
+        throw new AppError('Specialty not found', HTTP_STATUS.NOT_FOUND);
+      }
+      return this.formatItem(rows[0]);
     }
-    return this.formatRow(rows[0]);
   }
 
   async createSpecialty(input: CreateSpecialtyInput): Promise<SpecialtyResponse> {
@@ -41,26 +59,24 @@ export class SpecialtiesService {
       throw new AppError('Specialty name is required', HTTP_STATUS.BAD_REQUEST);
     }
 
-    // Duplicate specialty names blocked
-    const existing = await prisma.$queryRawUnsafe<any[]>(
-      'SELECT id FROM `Specialty` WHERE LOWER(name) = LOWER(?) LIMIT 1',
-      nameTrimmed
-    );
-    if (existing && existing.length > 0) {
+    // Duplicate specialty names blocked (case-insensitive check)
+    const existing = await prisma.specialty.findFirst({
+      where: { name: { equals: nameTrimmed } },
+    });
+    if (existing) {
       throw new AppError('A specialty with this name already exists', HTTP_STATUS.CONFLICT);
     }
 
-    const id = randomUUID();
-    const isActive = input.isActive !== undefined ? (input.isActive ? 1 : 0) : 1;
+    const isActive = input.isActive !== undefined ? Boolean(input.isActive) : true;
 
-    await prisma.$executeRawUnsafe(
-      'INSERT INTO `Specialty` (id, name, isActive, createdAt, updatedAt) VALUES (?, ?, ?, NOW(), NOW())',
-      id,
-      nameTrimmed,
-      isActive
-    );
+    const created = await prisma.specialty.create({
+      data: {
+        name: nameTrimmed,
+        isActive,
+      },
+    });
 
-    return this.getSpecialtyById(id);
+    return this.formatItem(created);
   }
 
   async updateSpecialty(id: string, input: UpdateSpecialtyInput): Promise<SpecialtyResponse> {
@@ -74,30 +90,32 @@ export class SpecialtiesService {
       }
 
       // Duplicate specialty names blocked
-      const duplicate = await prisma.$queryRawUnsafe<any[]>(
-        'SELECT id FROM `Specialty` WHERE LOWER(name) = LOWER(?) AND id != ? LIMIT 1',
-        nameTrimmed,
-        id
-      );
-      if (duplicate && duplicate.length > 0) {
+      const duplicate = await prisma.specialty.findFirst({
+        where: {
+          name: { equals: nameTrimmed },
+          id: { not: id },
+        },
+      });
+      if (duplicate) {
         throw new AppError('A specialty with this name already exists', HTTP_STATUS.CONFLICT);
       }
       name = nameTrimmed;
     }
 
-    let isActive = existing.isActive ? 1 : 0;
+    let isActive = existing.isActive;
     if (input.isActive !== undefined) {
-      isActive = input.isActive ? 1 : 0;
+      isActive = Boolean(input.isActive);
     } else if (input.active !== undefined) {
-      isActive = input.active ? 1 : 0;
+      isActive = Boolean(input.active);
     }
 
-    await prisma.$executeRawUnsafe(
-      'UPDATE `Specialty` SET name = ?, isActive = ?, updatedAt = NOW() WHERE id = ?',
-      name,
-      isActive,
-      id
-    );
+    const updated = await prisma.specialty.update({
+      where: { id },
+      data: {
+        name,
+        isActive,
+      },
+    });
 
     // If specialty name was changed, cascade to services, stock, and staff profile specialties
     if (existing.name !== name) {
@@ -121,10 +139,10 @@ export class SpecialtiesService {
             try { specs = JSON.parse(profile.specialties); } catch { specs = []; }
           }
           if (specs.includes(existing.name)) {
-            const updated = specs.map((s) => (s === existing.name ? name : s));
+            const updatedSpecs = specs.map((s) => (s === existing.name ? name : s));
             await prisma.staffProfile.update({
               where: { id: profile.id },
-              data: { specialties: updated },
+              data: { specialties: updatedSpecs },
             });
           }
         }
@@ -133,7 +151,7 @@ export class SpecialtiesService {
       }
     }
 
-    return this.getSpecialtyById(id);
+    return this.formatItem(updated);
   }
 
   async deleteSpecialty(id: string): Promise<void> {
@@ -172,7 +190,9 @@ export class SpecialtiesService {
       console.warn('Non-fatal error cleaning up deleted specialty from staff profiles:', cleanupErr?.message);
     }
 
-    await prisma.$executeRawUnsafe('DELETE FROM `Specialty` WHERE id = ?', id);
+    await prisma.specialty.delete({
+      where: { id },
+    });
   }
 }
 

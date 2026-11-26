@@ -69,7 +69,15 @@ exports.createClientSchema = zod_1.z.object({
     preferredLanguage: zod_1.z.string().optional().nullable(),
     holidayPreference: zod_1.z.string().optional().nullable(),
     clientType: zod_1.z.string().optional().nullable(),
-    source: zod_1.z.enum(['DIRECT', 'STAFF_REFERRAL', 'CLIENT_REFERRAL']).optional(),
+    source: zod_1.z.string().optional().transform((val) => {
+        if (!val || val === 'WALK_IN' || val === 'WALKIN' || val === 'DIRECT')
+            return 'DIRECT';
+        if (val === 'STAFF_REFERRAL' || val === 'STAFF')
+            return 'STAFF_REFERRAL';
+        if (val === 'CLIENT_REFERRAL' || val === 'CLIENT')
+            return 'CLIENT_REFERRAL';
+        return 'DIRECT';
+    }),
     introducedByEmployeeId: zod_1.z.union([zod_1.z.string().uuid(), zod_1.z.literal(''), zod_1.z.null()]).optional(),
     referredByClientId: zod_1.z.string().uuid().optional().nullable(),
     recommendedByName: zod_1.z.string().optional().nullable(),

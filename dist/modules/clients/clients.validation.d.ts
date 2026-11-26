@@ -18,7 +18,7 @@ export declare const createClientSchema: z.ZodObject<{
     preferredLanguage: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     holidayPreference: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     clientType: z.ZodNullable<z.ZodOptional<z.ZodString>>;
-    source: z.ZodOptional<z.ZodEnum<["DIRECT", "STAFF_REFERRAL", "CLIENT_REFERRAL"]>>;
+    source: z.ZodEffects<z.ZodOptional<z.ZodString>, "DIRECT" | "STAFF_REFERRAL" | "CLIENT_REFERRAL", string | undefined>;
     introducedByEmployeeId: z.ZodOptional<z.ZodUnion<[z.ZodString, z.ZodLiteral<"">, z.ZodNull]>>;
     referredByClientId: z.ZodNullable<z.ZodOptional<z.ZodString>>;
     recommendedByName: z.ZodNullable<z.ZodOptional<z.ZodString>>;
@@ -26,6 +26,7 @@ export declare const createClientSchema: z.ZodObject<{
 }, "strip", z.ZodTypeAny, {
     phone: string;
     name: string;
+    source: "DIRECT" | "STAFF_REFERRAL" | "CLIENT_REFERRAL";
     whatsapp?: string | null | undefined;
     quartier?: string | null | undefined;
     birthday?: string | null | undefined;
@@ -34,7 +35,6 @@ export declare const createClientSchema: z.ZodObject<{
     preferredLanguage?: string | null | undefined;
     holidayPreference?: string | null | undefined;
     clientType?: string | null | undefined;
-    source?: "DIRECT" | "STAFF_REFERRAL" | "CLIENT_REFERRAL" | undefined;
     introducedByEmployeeId?: string | null | undefined;
     referredByClientId?: string | null | undefined;
     recommendedByName?: string | null | undefined;
@@ -50,7 +50,7 @@ export declare const createClientSchema: z.ZodObject<{
     preferredLanguage?: string | null | undefined;
     holidayPreference?: string | null | undefined;
     clientType?: string | null | undefined;
-    source?: "DIRECT" | "STAFF_REFERRAL" | "CLIENT_REFERRAL" | undefined;
+    source?: string | undefined;
     introducedByEmployeeId?: string | null | undefined;
     referredByClientId?: string | null | undefined;
     recommendedByName?: string | null | undefined;

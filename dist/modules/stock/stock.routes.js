@@ -20,8 +20,8 @@ router.post('/retail/:id/refill', (0, roleMiddleware_1.allowRoles)('MANAGER', 'R
 router.post('/retail/deduct', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.deductRetailStock(req, res, next));
 // GET /api/v1/stock — View service stock (Manager, Reception, Technician, Marketer)
 router.get('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (req, res, next) => stock_controller_1.stockController.getServiceStock(req, res, next));
-// POST /api/v1/stock — Manager creates new service stock item
-router.post('/', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.createServiceStock(req, res, next));
+// POST /api/v1/stock — Manager & Reception create new service stock item
+router.post('/', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.createServiceStock(req, res, next));
 // ── Daily Stock Photo Audits ─────────────────────────────────────────
 // POST /api/v1/stock/daily-audit — Technician or staff submits end-of-day stock photo + remarks
 router.post('/daily-audit', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => stock_controller_1.stockController.submitDailyAudit(req, res, next));
@@ -33,15 +33,15 @@ router.patch('/daily-audit/:id/review', (0, roleMiddleware_1.allowRoles)('MANAGE
 router.delete('/daily-audit/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => stock_controller_1.stockController.deleteDailyAudit(req, res, next));
 // GET /api/v1/stock/:id — View single stock item
 router.get('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, next) => stock_controller_1.stockController.getStockById(req, res, next));
-// POST /api/v1/stock/:id/refill — Manager refills service stock
-router.post('/:id/refill', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.refillStock(req, res, next));
-// POST /api/v1/stock/:id/adjust — Manager adjusts service stock
-router.post('/:id/adjust', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.adjustStock(req, res, next));
-// PATCH /api/v1/stock/:id — Manager updates service stock details
-router.patch('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.updateStock(req, res, next));
+// POST /api/v1/stock/:id/refill — Manager & Reception refill service stock
+router.post('/:id/refill', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.refillStock(req, res, next));
+// POST /api/v1/stock/:id/adjust — Manager & Reception adjust service stock
+router.post('/:id/adjust', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.adjustStock(req, res, next));
+// PATCH /api/v1/stock/:id — Manager & Reception update service stock details
+router.patch('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.updateStock(req, res, next));
 // DELETE /api/v1/stock/retail/:id — Manager & Reception delete retail product
 router.delete('/retail/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.deleteRetailProduct(req, res, next));
-// DELETE /api/v1/stock/:id — Manager deletes service stock item
-router.delete('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER'), (req, res, next) => stock_controller_1.stockController.deleteServiceStock(req, res, next));
+// DELETE /api/v1/stock/:id — Manager & Reception delete service stock item
+router.delete('/:id', (0, roleMiddleware_1.allowRoles)('MANAGER', 'RECEPTION'), (req, res, next) => stock_controller_1.stockController.deleteServiceStock(req, res, next));
 exports.default = router;
 //# sourceMappingURL=stock.routes.js.map
