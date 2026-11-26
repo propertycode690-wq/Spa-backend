@@ -256,6 +256,7 @@ model StaffProfile {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
   @@map("staffprofile")
+
 }
 
 model Client {
@@ -726,7 +727,7 @@ model CommissionActivity {
   @@index([technicianCommissionId])
   @@index([type])
   @@index([performedById])
-  @@map("techniciancommission")
+  @@map("commissionactivity")
 }
 
 model LoyaltySetting {
@@ -744,7 +745,7 @@ model LoyaltySetting {
   isActive                Boolean  @default(true)
   createdAt               DateTime @default(now())
   updatedAt               DateTime @updatedAt
-  @@map("techniciancommission")
+  @@map("loyaltysetting")
 }
 
 model ClientLoyalty {
@@ -758,7 +759,7 @@ model ClientLoyalty {
   updatedAt     DateTime @updatedAt
 
   @@index([clientId])
-  @@map("techniciancommission")
+  @@map("clientloyalty")
 }
 
 model LoyaltyTransaction {
@@ -778,7 +779,7 @@ model LoyaltyTransaction {
   @@index([invoiceId])
   @@index([type])
   @@index([date])
-  @@map("techniciancommission")
+  @@map("loyaltytransaction")
 }
 
 model WhatsAppAutomation {
