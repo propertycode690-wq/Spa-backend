@@ -42,8 +42,8 @@ router.get('/', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN', 'MARKETER'), (r
   stockController.getServiceStock(req, res, next)
 );
 
-// POST /api/v1/stock — Manager creates new service stock item
-router.post('/', allowRoles('MANAGER'), (req, res, next) =>
+// POST /api/v1/stock — Manager & Reception create new service stock item
+router.post('/', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
   stockController.createServiceStock(req, res, next)
 );
 
@@ -74,18 +74,18 @@ router.get('/:id', allowRoles('MANAGER', 'RECEPTION', 'TECHNICIAN'), (req, res, 
   stockController.getStockById(req, res, next)
 );
 
-// POST /api/v1/stock/:id/refill — Manager refills service stock
-router.post('/:id/refill', allowRoles('MANAGER'), (req, res, next) =>
+// POST /api/v1/stock/:id/refill — Manager & Reception refill service stock
+router.post('/:id/refill', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
   stockController.refillStock(req, res, next)
 );
 
-// POST /api/v1/stock/:id/adjust — Manager adjusts service stock
-router.post('/:id/adjust', allowRoles('MANAGER'), (req, res, next) =>
+// POST /api/v1/stock/:id/adjust — Manager & Reception adjust service stock
+router.post('/:id/adjust', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
   stockController.adjustStock(req, res, next)
 );
 
-// PATCH /api/v1/stock/:id — Manager updates service stock details
-router.patch('/:id', allowRoles('MANAGER'), (req, res, next) =>
+// PATCH /api/v1/stock/:id — Manager & Reception update service stock details
+router.patch('/:id', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
   stockController.updateStock(req, res, next)
 );
 
@@ -94,8 +94,8 @@ router.delete('/retail/:id', allowRoles('MANAGER', 'RECEPTION'), (req, res, next
   stockController.deleteRetailProduct(req, res, next)
 );
 
-// DELETE /api/v1/stock/:id — Manager deletes service stock item
-router.delete('/:id', allowRoles('MANAGER'), (req, res, next) =>
+// DELETE /api/v1/stock/:id — Manager & Reception delete service stock item
+router.delete('/:id', allowRoles('MANAGER', 'RECEPTION'), (req, res, next) =>
   stockController.deleteServiceStock(req, res, next)
 );
 

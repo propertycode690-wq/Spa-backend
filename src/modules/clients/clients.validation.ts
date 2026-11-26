@@ -52,7 +52,12 @@ export const createClientSchema = z.object({
   preferredLanguage: z.string().optional().nullable(),
   holidayPreference: z.string().optional().nullable(),
   clientType: z.string().optional().nullable(),
-  source: z.enum(['DIRECT', 'STAFF_REFERRAL', 'CLIENT_REFERRAL']).optional(),
+  source: z.string().optional().transform((val) => {
+    if (!val || val === 'WALK_IN' || val === 'WALKIN' || val === 'DIRECT') return 'DIRECT';
+    if (val === 'STAFF_REFERRAL' || val === 'STAFF') return 'STAFF_REFERRAL';
+    if (val === 'CLIENT_REFERRAL' || val === 'CLIENT') return 'CLIENT_REFERRAL';
+    return 'DIRECT';
+  }),
   introducedByEmployeeId: z.union([z.string().uuid(), z.literal(''), z.null()]).optional(),
   referredByClientId: z.string().uuid().optional().nullable(),
   recommendedByName: z.string().optional().nullable(),

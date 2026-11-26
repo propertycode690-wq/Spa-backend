@@ -382,6 +382,21 @@ export class StockService {
       throw new AppError('Retail product not found', HTTP_STATUS.NOT_FOUND);
     }
 
+    if (data.barcode !== undefined) {
+      const cleanBarcode = data.barcode.trim() || null;
+      if (cleanBarcode) {
+        const duplicateBarcode = await prisma.retailProduct.findUnique({
+          where: { barcode: cleanBarcode },
+        });
+        if (duplicateBarcode && duplicateBarcode.id !== id) {
+          throw new AppError(
+            `Barcode "${cleanBarcode}" is already assigned to "${duplicateBarcode.name}". Please use a unique barcode.`,
+            HTTP_STATUS.CONFLICT
+          );
+        }
+      }
+    }
+
     const updated = await prisma.retailProduct.update({
       where: { id },
       data: {
@@ -400,9 +415,22 @@ export class StockService {
   }
 
   async createRetailProduct(data: CreateRetailProductInput) {
+    const cleanBarcode = data.barcode?.trim() || null;
+    if (cleanBarcode) {
+      const existingBarcode = await prisma.retailProduct.findUnique({
+        where: { barcode: cleanBarcode },
+      });
+      if (existingBarcode) {
+        throw new AppError(
+          `Barcode "${cleanBarcode}" is already assigned to "${existingBarcode.name}". Please use a unique barcode or leave it blank.`,
+          HTTP_STATUS.CONFLICT
+        );
+      }
+    }
+
     const product = await prisma.retailProduct.create({
       data: {
-        barcode: data.barcode || null,
+        barcode: cleanBarcode,
         name: data.name.trim(),
         category: data.category,
         price: new Prisma.Decimal(data.price),

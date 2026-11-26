@@ -1,4 +1,4 @@
-// Configure Douala, Cameroon (UTC+1) timezone across the entire Node.js runtime
+// Configure Douala, Cameroon (UTC+1) timezone across the entire Node.js runtime (local sync active)
 process.env.TZ = 'Africa/Douala';
 
 import app from './app';
