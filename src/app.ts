@@ -97,13 +97,13 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/uploads', express.static(path.resolve(__dirname, '../../uploads')));
 
 // ==================================================
-// Request Logging
+// Request Logging (Disabled to keep terminal output clean)
 // ==================================================
-if (env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined'));
-}
+// if (env.NODE_ENV === 'development') {
+//   app.use(morgan('dev'));
+// } else {
+//   app.use(morgan('combined'));
+// }
 
 // ==================================================
 // Health Check Endpoint

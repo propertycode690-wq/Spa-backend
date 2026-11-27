@@ -46,7 +46,7 @@
     "category": "fixed",
     "fixedMonth": 5,
     "fixedDay": 1,
-    "isActive": true,
+    "isActive": false,
     "timing": "09:00"
   },
   {

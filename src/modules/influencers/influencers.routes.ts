@@ -7,10 +7,10 @@ const router = Router();
 
 router.use(authMiddleware);
 
-// POST /api/v1/influencers — Create Influencer (Manager, Marketer)
+// POST /api/v1/influencers — Create Influencer (Manager, Marketer, Reception)
 router.post(
   '/',
-  allowRoles('MANAGER', 'MARKETER'),
+  allowRoles('MANAGER', 'MARKETER', 'RECEPTION'),
   (req, res, next) => influencersController.createInfluencer(req, res, next)
 );
 
@@ -28,10 +28,10 @@ router.get(
   (req, res, next) => influencersController.getPromoCodes(req, res, next)
 );
 
-// POST /api/v1/influencers/promo-codes — Create Promo Code (Manager, Marketer)
+// POST /api/v1/influencers/promo-codes — Create Promo Code (Manager, Marketer, Reception)
 router.post(
   '/promo-codes',
-  allowRoles('MANAGER', 'MARKETER'),
+  allowRoles('MANAGER', 'MARKETER', 'RECEPTION'),
   (req, res, next) => influencersController.createPromoCode(req, res, next)
 );
 
